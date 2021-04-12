@@ -65,6 +65,7 @@ def login(update, context):
         msg,
         reply_markup=markup,
     )
+    return EVENTS if session else USERNAME
 
 
 def events(update, context):
