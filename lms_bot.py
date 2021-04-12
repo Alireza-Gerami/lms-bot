@@ -82,7 +82,7 @@ def events(update, context):
     else:
         msg = 'لطفا بعدا تلاش کنید.'
     update.message.reply_text(msg, )
-    return LOGIN
+    return EVENTS
 
 
 def cancel(update, context):
