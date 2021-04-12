@@ -100,28 +100,29 @@ def alert(context: CallbackContext):
 
 
 def set_alert(update: Updater, context: CallbackContext):
-    chat_id = update.message.chat_id
-    if not job_if_exists(str(chat_id), context):
-        reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
-        if not session_is_connected(context.user_data['session']):
-            session, msg = sign_in(context.user_data['username'], context.user_data["password"])
-            context.user_data['session'] = session
-        courses, msg = get_student_courses(context.user_data['session'])
-        if courses:
-            context.user_data['courses'] = courses
-            for course in courses:
-                activities, msg = get_course_activities(context.user_data['session'], course['id'])
-                if activities:
-                    context.user_data[course['id']] = activities
-                else:
-                    reply_msg = msg
-            if reply_msg != msg:
-                context.user_data['chat_id'] = chat_id
-                context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=60)
-        else:
-            reply_msg = msg
-    else:
-        reply_msg = 'اطلاع رسانی فعال است.'
+    # chat_id = update.message.chat_id
+    # if not job_if_exists(str(chat_id), context):
+    #     reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
+    #     if not session_is_connected(context.user_data['session']):
+    #         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+    #         context.user_data['session'] = session
+    #     courses, msg = get_student_courses(context.user_data['session'])
+    #     if courses:
+    #         context.user_data['courses'] = courses
+    #         for course in courses:
+    #             activities, msg = get_course_activities(context.user_data['session'], course['id'])
+    #             if activities:
+    #                 context.user_data[course['id']] = activities
+    #             else:
+    #                 reply_msg = msg
+    #         if reply_msg != msg:
+    #             context.user_data['chat_id'] = chat_id
+    #             context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=60)
+    #     else:
+    #         reply_msg = msg
+    # else:
+    #     reply_msg = 'اطلاع رسانی فعال است.'
+    reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
     update.message.reply_text(reply_msg)
 
 
@@ -150,8 +151,7 @@ def main():
             PASSWORD: [MessageHandler(Filters.text & ~Filters.command, password)],
             LOGIN: [MessageHandler(Filters.text & ~Filters.command, login)],
             EVENTS: [MessageHandler(Filters.regex('^نمایش رویدادها'), events)],
-            ALERT: [MessageHandler(Filters.regex('^اطلاع دادن فعالیت جدید'), set_alert)]
-
+            ALERT: [MessageHandler(Filters.regex('^اطلاع دادن فعالیت جدید'), set_alert)],
         },
         fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج'), cancel)],
     )
