@@ -47,7 +47,7 @@ def login(update: Updater, context: CallbackContext):
     context.user_data['password'] = update.message.text
     session, reply_msg = sign_in(context.user_data['username'], context.user_data["password"])
     if session:
-        reply_keyboard = [['نمایش رویدادها'], ['خروج'], 'اطلاع دادن فعالیت جدید']
+        reply_keyboard = [['نمایش رویدادها'], ['اطلاع دادن فعالیت جدید'], ['خروج']]
         context.user_data['session'] = session
     else:
         reply_keyboard = [['ورود به سامانه']]
@@ -117,7 +117,7 @@ def set_alert(update: Updater, context: CallbackContext):
                     reply_msg = msg
             if reply_msg != msg:
                 context.user_data['chat_id'] = chat_id
-                context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=8 * 60 * 60)
+                context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=60)
         else:
             reply_msg = msg
     else:
