@@ -4,7 +4,7 @@ import requests
 BASE_URL = 'https://vlms.ub.ac.ir/'
 
 
-def sign_in(username, password):
+def sign_in(username: str, password: str):
     payload = {
         'logintoken': '',
         'username': username,
@@ -23,7 +23,55 @@ def sign_in(username, password):
         return None, 'سامانه در دسترس نیست. لطفا بعدا تلاش کنید!'
 
 
-def get_events(session):
+def session_is_connected(session: requests.Session):
+    try:
+        dashboard_page = session.get(f'{BASE_URL}my/', timeout=10).text
+        if 'ورود به سامانه' in dashboard_page:
+            return False
+        return True
+    except (requests.exceptions.ReadTimeout, Exception):
+        return False
+
+
+def get_student_courses(session: requests.Session):
+    try:
+        courses = []
+        dashboard_page = BeautifulSoup(session.get(f'{BASE_URL}my/', timeout=10).content, 'html.parser')
+        print(dashboard_page)
+        for a_tag in dashboard_page.find_all('a', {'class': 'dropdown-item'}):
+            if 'https://vlms.ub.ac.ir/course/view.php' in a_tag['href']:
+                courses.append({
+                    'id': str(a_tag['href']).split('=')[-1],
+                    'name': a_tag.text
+                })
+        return courses, ''
+    except (requests.exceptions.ReadTimeout, Exception):
+        return None, 'لطفا دوباره تلاش کنید!'
+
+
+def get_course_activities(session: requests.Session, course_id: str):
+    try:
+        course_page = BeautifulSoup(session.get(f'{BASE_URL}course/view.php?id={course_id}', timeout=10).content,
+                                    'html.parser')
+        activities_id = list(course_page.find_all('input', {'name': 'id'}))
+        activities_name = course_page.find_all('input', {'name': 'modulename'})
+        activities_status = course_page.find_all('input', {'name': 'completionstate'})
+
+        activities = []
+        for idx in range(len(activities_id)):
+            activities.append(
+                {
+                    'id': activities_id[idx]['value'],
+                    'name': activities_name[idx]['value'],
+                    'status': activities_status[idx]['value'],
+                }
+            )
+        return activities, ''
+    except (requests.exceptions.ReadTimeout, Exception):
+        return None, 'لطفا دوباره تلاش کنید!'
+
+
+def get_events(session: requests.Session):
     events_list = []
     if session:
         try:
