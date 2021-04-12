@@ -81,10 +81,8 @@ def events(update, context):
                 msg += f'نام درس:  {event["lesson"]}\nعنوان تمرین:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت: {event["status"]}\n\n'
     else:
         msg = 'لطفا بعدا تلاش کنید.'
-    update.message.reply_text(msg,
-                              reply_markup=ReplyKeyboardRemove(),
-                              )
-    return ConversationHandler.END
+    update.message.reply_text(msg, )
+    return LOGIN
 
 
 def cancel(update, context):
