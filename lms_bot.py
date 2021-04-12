@@ -54,35 +54,28 @@ def password(update, context):
 
 def login(update, context):
     context.user_data['password'] = update.message.text
-    session = sign_in(context.user_data['username'], context.user_data["password"])
+    session, msg = sign_in(context.user_data['username'], context.user_data["password"])
     if session:
-        reply_keyboard = [['نمایش رویدادها']]
-        msg = 'با موفقیت وارد شدید.'
+        reply_keyboard = [['نمایش رویدادها'], ['خروج']]
         context.user_data['session'] = session
     else:
         reply_keyboard = [['ورود به سامانه']]
-        msg = 'نام کاربری یا رمز ورود نامعتبر است.'
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     update.message.reply_text(
         msg,
         reply_markup=markup,
     )
-    return EVENTS if session else USERNAME
 
 
 def events(update, context):
-    events_list = get_events(context.user_data['session'])
-    msg = ''
+    events_list, msg = get_events(context.user_data['session'])
     if events_list:
         if len(events_list) == 0:
             msg = 'برو حال کن هیچ رویداد نزدیکی نداری.'
         else:
             for event in events_list:
                 msg += f'نام درس:  {event["lesson"]}\nعنوان تمرین:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت: {event["status"]}\n\n'
-    else:
-        msg = 'لطفا بعدا تلاش کنید.'
-    update.message.reply_text(msg, )
-    return EVENTS
+    update.message.reply_text(msg)
 
 
 def cancel(update, context):
@@ -111,7 +104,7 @@ def main():
             LOGIN: [MessageHandler(Filters.text & ~Filters.command, login)],
             EVENTS: [MessageHandler(Filters.regex('^نمایش رویدادها'), events)],
         },
-        fallbacks=[CommandHandler('cancel', cancel)],
+        fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج'), cancel)],
     )
 
     dispatcher.add_handler(conv_handler)

@@ -12,22 +12,22 @@ def sign_in(username, password):
     }
     try:
         session = requests.Session()
-        response = session.get(url=f'{BASE_URL}login/index.php')
+        response = session.get(url=f'{BASE_URL}login/index.php', timeout=10)
         login_page = BeautifulSoup(response.content, 'html.parser')
         payload['logintoken'] = login_page.find(attrs={"name": "logintoken"})['value']
-        response = session.post(url=f'{BASE_URL}login/index.php', data=payload)
+        response = session.post(url=f'{BASE_URL}login/index.php', data=payload, timeout=10)
         if 'نامعتبر' in response.text:
-            return None
-        return session
-    except Exception:
-        return None
+            return None, 'نام کاربری یا رمز ورود نامعتبر است.'
+        return session, 'با موفقیت وارد شدید.'
+    except (requests.exceptions.ReadTimeout, Exception):
+        return None, 'سامانه در دسترس نیست. لطفا بعدا تلاش کنید!'
 
 
 def get_events(session):
     events_list = []
     if session:
         try:
-            events_page = BeautifulSoup(session.get(f'{BASE_URL}calendar/view.php?view=upcoming').content,
+            events_page = BeautifulSoup(session.get(f'{BASE_URL}calendar/view.php?view=upcoming', timeout=10).content,
                                         'html.parser')
             events = events_page.find_all('div', {'class': 'event'})
             for event in events:
@@ -45,8 +45,10 @@ def get_events(session):
                     'deadline': event_deadline,
                     'status': event_status
                 })
-            return events_list
+            return events_list, ''
+        except requests.exceptions.ReadTimeout:
+            return None, 'لطفا دوباره وارد شوید.'
         except:
-            return None
+            return None, 'لطفا دوباره تلاش کنید!'
     else:
-        return None
+        return None, 'سامانه در دسترس نیست. لطفا بعدا تلاش کنید!'
