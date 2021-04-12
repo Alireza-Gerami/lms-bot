@@ -37,10 +37,13 @@ def get_events(session):
                 event_description = event.find('div', {'class': 'description'})
                 event_lesson_name = ' '.join(str(event_description.find_all('div')[-1].text).split())
                 event_deadline = ' '.join(str(event_description.find_all('div')[0].text).split())
+                event_status = 'تحویل داده شذه است. \U00002705' if 'رفتن به فعالیت' in event.find('a', {
+                    'class': 'card-link'}).text else 'تحویل داده نشده است. \U0000274C'
                 events_list.append({
                     'name': event_name,
                     'lesson': event_lesson_name,
-                    'deadline': event_deadline
+                    'deadline': event_deadline,
+                    'status': event_status
                 })
             return events_list
         except:

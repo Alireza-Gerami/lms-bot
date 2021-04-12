@@ -78,7 +78,7 @@ def events(update, context):
             msg = 'برو حال کن هیچ رویداد نزدیکی نداری.'
         else:
             for event in events_list:
-                msg += f'نام درس:  {event["lesson"]}\nعنوان تمرین:   {event["name"]}\nمهلت تا:   {event["deadline"]}\n\n'
+                msg += f'نام درس:  {event["lesson"]}\nعنوان تمرین:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت: {event["status"]}\n\n'
     else:
         msg = 'لطفا بعدا تلاش کنید.'
     update.message.reply_text(msg,
