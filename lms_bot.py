@@ -163,7 +163,7 @@ def main():
     set_alert_handler = MessageHandler(Filters.regex('^اطلاع دادن فعالیت جدید'), set_alert)
     dispatcher.add_handler(set_alert_handler)
 
-    exit_handler = [CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج'), cancel)]
+    exit_handler = MessageHandler(Filters.regex('^خروج'), cancel)
     dispatcher.add_handler(exit_handler)
 
     dispatcher.add_error_handler(error)
