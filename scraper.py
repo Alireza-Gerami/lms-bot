@@ -37,7 +37,6 @@ def get_student_courses(session: requests.Session):
     try:
         courses = []
         dashboard_page = BeautifulSoup(session.get(f'{BASE_URL}my/', timeout=10).content, 'html.parser')
-        print(dashboard_page)
         for a_tag in dashboard_page.find_all('a', {'class': 'dropdown-item'}):
             if 'https://vlms.ub.ac.ir/course/view.php' in a_tag['href']:
                 courses.append({

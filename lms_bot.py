@@ -91,11 +91,11 @@ def alert(context: CallbackContext):
         job.context.user_data['session'] = session
     courses = job.context.user_data['courses']
     for course in courses:
-        activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
+        # activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
         reply_msg += f'نام درس:  {course["name"]}\nفعالیت ها:   '
-        for activity in activities:
-            status = "مشاهده شده است. \U00002705" if activity["status"] == "0" else "مشاهده نشده است. \U0000274C"
-            reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}'
+        # for activity in activities:
+        #     status = "مشاهده شده است. \U00002705" if activity["status"] == "0" else "مشاهده نشده است. \U0000274C"
+        #     reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}'
     context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
