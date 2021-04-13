@@ -144,7 +144,7 @@ def unset_alert(update: Updater, context: CallbackContext):
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
-    if not job_if_exists(str(chat_id), context, remove=True):
+    if job_if_exists(str(chat_id), context, remove=True):
         reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
         update.message.reply_text(reply_markup=markup)
