@@ -56,6 +56,7 @@ def login(update: Updater, context: CallbackContext):
         reply_msg,
         reply_markup=markup,
     )
+    return ConversationHandler.END
 
 
 def events(update: Updater, context: CallbackContext):
@@ -125,7 +126,10 @@ def set_alert(update: Updater, context: CallbackContext):
     update.message.reply_text(reply_msg)
 
 
-def cancel(update: Updater, _: CallbackContext):
+def cancel(update: Updater, context: CallbackContext):
+    # chat_id = update.message.chat_id
+    # job_if_exists(str(chat_id), context, remove=True)
+    # context.user_data.clear()
     update.message.reply_text(
         'به امید دیدار'
         '\nبرای شروع دوباره /start رو بفرست.',
