@@ -174,7 +174,7 @@ def error(update: Update, context: CallbackContext):
     logger.warning(f'Update {update} caused error {context.error}')
 
 
-def keep_awake_heroku():
+def keep_awake_heroku(context: CallbackContext):
     requests.get(f'https://{HEROKU_APP_NAME}.herokuapp.com/')
     logger.info('Send request to keep awake.')
 
@@ -207,7 +207,8 @@ def main():
     exit_handler = MessageHandler(Filters.regex('^خروج$'), cancel)
     dispatcher.add_handler(exit_handler)
 
-    dispatcher.job_queue.run_repeating(keep_awake_heroku, name='keep_alive', interval=20 * 60)
+    job_queue = dispatcher.job_queue
+    job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
 
     dispatcher.add_error_handler(error)
 
