@@ -11,7 +11,7 @@ PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 logger = logging.getLogger(__name__)
 
-LOGIN, USERNAME, PASSWORD, EVENTS, ALERT = range(5)
+LOGIN, USERNAME, PASSWORD = range(3)
 
 
 def start(update: Updater, _: CallbackContext):
@@ -56,7 +56,6 @@ def login(update: Updater, context: CallbackContext):
         reply_msg,
         reply_markup=markup,
     )
-    return EVENTS if session else USERNAME
 
 
 def events(update: Updater, context: CallbackContext):
@@ -150,13 +149,16 @@ def main():
             USERNAME: [MessageHandler(Filters.regex('^ورود به سامانه'), username)],
             PASSWORD: [MessageHandler(Filters.text & ~Filters.command, password)],
             LOGIN: [MessageHandler(Filters.text & ~Filters.command, login)],
-            EVENTS: [MessageHandler(Filters.regex('^نمایش رویدادها'), events)],
-            ALERT: [MessageHandler(Filters.regex('^اطلاع دادن فعالیت جدید'), set_alert)],
         },
         fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج'), cancel)],
     )
-
     dispatcher.add_handler(conv_handler)
+
+    show_event_handler = MessageHandler(Filters.regex('^نمایش رویدادها'), events)
+    dispatcher.add_handler(show_event_handler)
+
+    set_alert_handler = MessageHandler(Filters.regex('^اطلاع دادن فعالیت جدید'), set_alert)
+    dispatcher.add_handler(set_alert_handler)
 
     dispatcher.add_error_handler(error)
 
