@@ -109,6 +109,7 @@ def alert(context: CallbackContext):
 def set_alert(update: Updater, context: CallbackContext):
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    markup = None
     if not job_if_exists(str(chat_id), context):
         reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
         if not session_is_connected(context.user_data['session']):
@@ -126,19 +127,23 @@ def set_alert(update: Updater, context: CallbackContext):
             if reply_msg != msg:
                 reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
                 markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-                update.message.reply_text(reply_markup=markup)
+
                 context.user_data['chat_id'] = chat_id
                 context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=60)
         else:
             reply_msg = msg
     else:
         reply_msg = 'اطلاع رسانی فعال است.'
-    update.message.reply_text(reply_msg)
+    if markup:
+        update.message.reply_text(reply_msg, reply_markup=markup)
+    else:
+        update.message.reply_text(reply_msg)
 
 
 def unset_alert(update: Updater, context: CallbackContext):
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    markup = None
     if not job_if_exists(str(chat_id), context, remove=True):
         reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
@@ -146,7 +151,10 @@ def unset_alert(update: Updater, context: CallbackContext):
         reply_msg = 'اطلاع رسانی فعالیت جدید غیر فعال شد.'
     else:
         reply_msg = 'اطلاع رسانی غیر فعال است.'
-    update.message.reply_text(reply_msg)
+    if markup:
+        update.message.reply_text(reply_msg, reply_markup=markup)
+    else:
+        update.message.reply_text(reply_msg)
 
 
 def cancel(update: Updater, context: CallbackContext):
