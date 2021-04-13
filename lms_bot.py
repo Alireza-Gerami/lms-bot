@@ -47,7 +47,11 @@ def login(update: Updater, context: CallbackContext):
     context.user_data['password'] = update.message.text
     session, reply_msg = sign_in(context.user_data['username'], context.user_data["password"])
     if session:
-        reply_keyboard = [['نمایش رویدادها'], ['اطلاع دادن فعالیت جدید'], ['خروج']]
+        chat_id = update.message.chat_id
+        if not job_if_exists(str(chat_id), context):
+            reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+        else:
+            reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         context.user_data['session'] = session
     else:
         reply_keyboard = [['ورود به سامانه']]
@@ -116,12 +120,27 @@ def set_alert(update: Updater, context: CallbackContext):
                 else:
                     reply_msg = msg
             if reply_msg != msg:
+                reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+                markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+                update.message.reply_text(reply_markup=markup)
                 context.user_data['chat_id'] = chat_id
                 context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=60)
         else:
             reply_msg = msg
     else:
         reply_msg = 'اطلاع رسانی فعال است.'
+    update.message.reply_text(reply_msg)
+
+
+def unset_alert(update: Updater, context: CallbackContext):
+    chat_id = update.message.chat_id
+    if not job_if_exists(str(chat_id), context, remove=True):
+        reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+        update.message.reply_text(reply_markup=markup)
+        reply_msg = 'اطلاع رسانی فعالیت جدید غیر فعال شد.'
+    else:
+        reply_msg = 'اطلاع رسانی غیر فعال است.'
     update.message.reply_text(reply_msg)
 
 
