@@ -51,7 +51,7 @@ def login(update: Updater, context: CallbackContext):
         context.user_data['session'] = session
     else:
         reply_keyboard = [['ورود به سامانه']]
-    markup = ReplyKeyboardMarkup(reply_keyboard)
+    markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
     update.message.reply_text(
         reply_msg,
         reply_markup=markup,
@@ -85,19 +85,18 @@ def job_if_exists(name: str, context: CallbackContext, remove=False):
 
 def alert(context: CallbackContext):
     job = context.job
-    reply_msg = ''
     if not session_is_connected(job.context.user_data['session']):
         session, msg = sign_in(job.context.user_data['username'], job.context.user_data["password"])
         job.context.user_data['session'] = session
     courses = job.context.user_data['courses']
     for course in courses:
+        reply_msg = ''
         activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
         reply_msg += f'نام درس:  {course["name"]}\nفعالیت ها:   '
         for activity in activities:
             status = "مشاهده شده است. \U00002705" if activity["status"] == "0" else "مشاهده نشده است. \U0000274C"
             reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n'
-        break
-    context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
+        context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
 def set_alert(update: Updater, context: CallbackContext):

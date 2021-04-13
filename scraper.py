@@ -41,7 +41,7 @@ def get_student_courses(session: requests.Session):
             if 'https://vlms.ub.ac.ir/course/view.php' in a_tag['href']:
                 courses.append({
                     'id': str(a_tag['href']).split('=')[-1],
-                    'name': a_tag.text
+                    'name': clear_text(a_tag.text)
                 })
         return courses, ''
     except (requests.exceptions.ReadTimeout, Exception):
@@ -61,8 +61,8 @@ def get_course_activities(session: requests.Session, course_id: str):
             activities.append(
                 {
                     'id': activities_id[idx]['value'],
-                    'name': activities_name[idx]['value'],
-                    'status': activities_status[idx]['value'],
+                    'name': clear_text(activities_name[idx]['value']),
+                    'status': clear_text(activities_status[idx]['value']),
                 }
             )
         return activities, ''
@@ -78,12 +78,11 @@ def get_events(session: requests.Session):
                                         'html.parser')
             events = events_page.find_all('div', {'class': 'event'})
             for event in events:
-                event_name = ' '.join(
-                    str(event.find('div', {'class': 'card'}).find('h3', {'class': 'name'}).text).split()).replace(
-                    'is due', '')
+                event_name = clear_text(
+                    str(event.find('div', {'class': 'card'}).find('h3', {'class': 'name'}).text)).replace('is due', '')
                 event_description = event.find('div', {'class': 'description'})
-                event_lesson_name = ' '.join(str(event_description.find_all('div')[-1].text).split())
-                event_deadline = ' '.join(str(event_description.find_all('div')[0].text).split())
+                event_lesson_name = clear_text(str(event_description.find_all('div')[-1].text))
+                event_deadline = clear_text(str(event_description.find_all('div')[0].text))
                 event_status = 'تحویل داده شده است. \U00002705' if 'رفتن به فعالیت' in event.find('a', {
                     'class': 'card-link'}).text else 'تحویل داده نشده است. \U0000274C'
                 events_list.append({
@@ -99,3 +98,7 @@ def get_events(session: requests.Session):
             return None, 'لطفا دوباره تلاش کنید!'
     else:
         return None, 'سامانه در دسترس نیست. لطفا بعدا تلاش کنید!'
+
+
+def clear_text(text: str):
+    return ' '.join(text.split())
