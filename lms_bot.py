@@ -1,6 +1,6 @@
 import logging
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction
 from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected)
 
@@ -44,7 +44,9 @@ def password(update: Updater, context: CallbackContext):
 
 
 def login(update: Updater, context: CallbackContext):
+    chat_id = update.message.chat_id
     context.user_data['password'] = update.message.text
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     session, reply_msg = sign_in(context.user_data['username'], context.user_data["password"])
     if session:
         chat_id = update.message.chat_id
@@ -64,6 +66,7 @@ def login(update: Updater, context: CallbackContext):
 
 
 def events(update: Updater, context: CallbackContext):
+    context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     if not session_is_connected(context.user_data['session']):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
         context.user_data['session'] = session
@@ -105,6 +108,7 @@ def alert(context: CallbackContext):
 
 def set_alert(update: Updater, context: CallbackContext):
     chat_id = update.message.chat_id
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     if not job_if_exists(str(chat_id), context):
         reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
         if not session_is_connected(context.user_data['session']):
@@ -134,6 +138,7 @@ def set_alert(update: Updater, context: CallbackContext):
 
 def unset_alert(update: Updater, context: CallbackContext):
     chat_id = update.message.chat_id
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     if not job_if_exists(str(chat_id), context, remove=True):
         reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
