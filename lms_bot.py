@@ -95,8 +95,8 @@ def alert(context: CallbackContext):
         reply_msg += f'نام درس:  {course["name"]}\nفعالیت ها:   '
         for activity in activities:
             status = "مشاهده شده است. \U00002705" if activity["status"] == "0" else "مشاهده نشده است. \U0000274C"
-            reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}'
-            break
+            reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n'
+        break
     context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
