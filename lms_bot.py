@@ -92,14 +92,13 @@ def job_if_exists(name: str, context: CallbackContext, remove=False):
 
 def alert(context: CallbackContext):
     job = context.job
-    user_data = job.context.user_data
-    if not session_is_connected(user_data['session']):
-        session, msg = sign_in(user_data['username'], user_data["password"])
-        user_data['session'] = session
-    courses = user_data['courses']
+    if not session_is_connected(job.context.user_data['session']):
+        session, msg = sign_in(job.context.user_data['username'], job.context.user_data["password"])
+        job.context.user_data['session'] = session
+    courses = job.context.user_data['courses']
     for course in courses:
-        activities, msg = get_course_activities(user_data['session'], course['id'])
-        last_activities_id = user_data[course['id']]
+        activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
+        last_activities_id = job.context.user_data[course['id']]
         if len(activities) != len(last_activities_id):
             reply_msg = '\n\n\U0001F514  فعالیت جدید اضافه شد \U0001F514'
             for activity in activities:
@@ -135,7 +134,7 @@ def set_alert(update: Update, context: CallbackContext):
 
                 context.user_data['chat_id'] = chat_id
                 context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=2 * 60 * 60)
-        else:
+        else:   
             reply_msg = msg
     else:
         reply_msg = 'اطلاع رسانی فعال است.'
