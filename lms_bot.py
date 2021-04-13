@@ -56,7 +56,7 @@ def login(update: Updater, context: CallbackContext):
         reply_msg,
         reply_markup=markup,
     )
-    return ConversationHandler.END
+    return ConversationHandler.END if session else USERNAME
 
 
 def events(update: Updater, context: CallbackContext):
