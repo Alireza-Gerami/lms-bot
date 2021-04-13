@@ -1,6 +1,6 @@
-import logging
+import logging, requests
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update
 from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected)
 
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 LOGIN, USERNAME, PASSWORD = range(3)
 
 
-def start(update: Updater, _: CallbackContext):
+def start(update: Update, _: CallbackContext):
     reply_keyboard = [['ورود به سامانه']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
     update.message.reply_text(
@@ -27,7 +27,7 @@ def start(update: Updater, _: CallbackContext):
     return USERNAME
 
 
-def username(update: Updater, _: CallbackContext):
+def username(update: Update, _: CallbackContext):
     update.message.reply_text(
         'لطفا نام کاربری را وارد کن',
         reply_markup=ReplyKeyboardRemove(),
@@ -35,7 +35,7 @@ def username(update: Updater, _: CallbackContext):
     return PASSWORD
 
 
-def password(update: Updater, context: CallbackContext):
+def password(update: Update, context: CallbackContext):
     context.user_data['username'] = update.message.text
     update.message.reply_text(
         'لطفا رمز ورود را وارد کن'
@@ -43,7 +43,7 @@ def password(update: Updater, context: CallbackContext):
     return LOGIN
 
 
-def login(update: Updater, context: CallbackContext):
+def login(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     context.user_data['password'] = update.message.text
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
@@ -65,7 +65,7 @@ def login(update: Updater, context: CallbackContext):
     return ConversationHandler.END if session else USERNAME
 
 
-def events(update: Updater, context: CallbackContext):
+def events(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     if not session_is_connected(context.user_data['session']):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
@@ -76,7 +76,7 @@ def events(update: Updater, context: CallbackContext):
             reply_msg = 'برو حال کن هیچ رویداد نزدیکی نداری.'
         else:
             for event in events_list:
-                reply_msg += f'نام درس:   {event["lesson"]}\nعنوان تمرین:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت:   {event["status"]}\n\n'
+                reply_msg += f'نام درس:   {event["lesson"]}\nعنوان فعالیت:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت:   {event["status"]}\n\n'
     update.message.reply_text(reply_msg)
 
 
@@ -92,21 +92,26 @@ def job_if_exists(name: str, context: CallbackContext, remove=False):
 
 def alert(context: CallbackContext):
     job = context.job
-    if not session_is_connected(job.context.user_data['session']):
-        session, msg = sign_in(job.context.user_data['username'], job.context.user_data["password"])
-        job.context.user_data['session'] = session
-    courses = job.context.user_data['courses']
+    user_data = job.context.user_data
+    if not session_is_connected(user_data['session']):
+        session, msg = sign_in(user_data['username'], user_data["password"])
+        user_data['session'] = session
+    courses = user_data['courses']
     for course in courses:
-        reply_msg = ''
-        activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
-        reply_msg += f'نام درس:  {course["name"]}\nفعالیت ها:   '
-        for activity in activities:
-            status = "مشاهده شده است. \U00002705" if activity["status"] == "0" else "مشاهده نشده است. \U0000274C"
-            reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n'
-        context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
+        activities, msg = get_course_activities(user_data['session'], course['id'])
+        last_activities_id = user_data[course['id']]
+        if len(activities) != len(last_activities_id):
+            reply_msg = '\n\n\U0001F514  فعالیت جدید اضافه شد \U0001F514'
+            for activity in activities:
+                if activity['id'] not in last_activities_id:
+                    reply_msg += f'نام درس:  {course["name"]}\nفعالیت های جدید:   '
+                    status = "مشاهده شده است. \U00002705" if activity[
+                                                                 "status"] == "0" else "مشاهده نشده است. \U0000274C"
+                    reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n'
+            context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
-def set_alert(update: Updater, context: CallbackContext):
+def set_alert(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
@@ -121,7 +126,7 @@ def set_alert(update: Updater, context: CallbackContext):
             for course in courses:
                 activities, msg = get_course_activities(context.user_data['session'], course['id'])
                 if activities:
-                    context.user_data[course['id']] = activities
+                    context.user_data[course['id']] = [activity['id'] for activity in activities]
                 else:
                     reply_msg = msg
             if reply_msg != msg:
@@ -129,7 +134,7 @@ def set_alert(update: Updater, context: CallbackContext):
                 markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
 
                 context.user_data['chat_id'] = chat_id
-                context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=60)
+                context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=2 * 60 * 60)
         else:
             reply_msg = msg
     else:
@@ -140,7 +145,7 @@ def set_alert(update: Updater, context: CallbackContext):
         update.message.reply_text(reply_msg)
 
 
-def unset_alert(update: Updater, context: CallbackContext):
+def unset_alert(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
@@ -156,10 +161,7 @@ def unset_alert(update: Updater, context: CallbackContext):
         update.message.reply_text(reply_msg)
 
 
-def cancel(update: Updater, context: CallbackContext):
-    # chat_id = update.message.chat_id
-    # job_if_exists(str(chat_id), context, remove=True)
-    # context.user_data.clear()
+def cancel(update: Update, _: CallbackContext):
     update.message.reply_text(
         'به امید دیدار'
         '\nبرای شروع دوباره /start رو بفرست.',
@@ -168,8 +170,13 @@ def cancel(update: Updater, context: CallbackContext):
     return ConversationHandler.END
 
 
-def error(update: Updater, context: CallbackContext):
-    logger.warning('Update "%s" caused error "%s"', update, context.error)
+def error(update: Update, context: CallbackContext):
+    logger.warning(f'Update {update} caused error {context.error}')
+
+
+def keep_awake_heroku():
+    requests.get(f'https://{HEROKU_APP_NAME}.herokuapp.com/')
+    logger.info('Send request to keep awake.')
 
 
 def main():
@@ -199,6 +206,8 @@ def main():
 
     exit_handler = MessageHandler(Filters.regex('^خروج$'), cancel)
     dispatcher.add_handler(exit_handler)
+
+    dispatcher.job_queue.run_repeating(keep_awake_heroku, name='keep_alive', interval=20 * 60)
 
     dispatcher.add_error_handler(error)
 
