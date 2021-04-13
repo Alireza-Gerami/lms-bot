@@ -168,21 +168,24 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            USERNAME: [MessageHandler(Filters.regex('^ورود به سامانه'), username)],
+            USERNAME: [MessageHandler(Filters.regex('^ورود به سامانه$'), username)],
             PASSWORD: [MessageHandler(Filters.text & ~Filters.command, password)],
             LOGIN: [MessageHandler(Filters.text & ~Filters.command, login)],
         },
-        fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج'), cancel)],
+        fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج$'), cancel)],
     )
     dispatcher.add_handler(conv_handler)
 
-    show_event_handler = MessageHandler(Filters.regex('^نمایش رویدادها'), events)
+    show_event_handler = MessageHandler(Filters.regex('^نمایش رویدادها$'), events)
     dispatcher.add_handler(show_event_handler)
 
-    set_alert_handler = MessageHandler(Filters.regex('^اطلاع دادن فعالیت جدید'), set_alert)
+    set_alert_handler = MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert)
     dispatcher.add_handler(set_alert_handler)
 
-    exit_handler = MessageHandler(Filters.regex('^خروج'), cancel)
+    unset_alert_handler = MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert)
+    dispatcher.add_handler(unset_alert_handler)
+
+    exit_handler = MessageHandler(Filters.regex('^خروج$'), cancel)
     dispatcher.add_handler(exit_handler)
 
     dispatcher.add_error_handler(error)
