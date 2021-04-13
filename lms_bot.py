@@ -147,7 +147,6 @@ def unset_alert(update: Updater, context: CallbackContext):
     if job_if_exists(str(chat_id), context, remove=True):
         reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-        update.message.reply_text(reply_markup=markup)
         reply_msg = 'اطلاع رسانی فعالیت جدید غیر فعال شد.'
     else:
         reply_msg = 'اطلاع رسانی غیر فعال است.'
