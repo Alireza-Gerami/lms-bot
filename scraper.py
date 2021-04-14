@@ -5,6 +5,7 @@ BASE_URL = 'https://vlms.ub.ac.ir/'
 
 
 def sign_in(username: str, password: str):
+    """ Sign in to lms """
     payload = {
         'logintoken': '',
         'username': username,
@@ -24,6 +25,7 @@ def sign_in(username: str, password: str):
 
 
 def session_is_connected(session: requests.Session):
+    """ Check user session is connected """
     try:
         dashboard_page = session.get(f'{BASE_URL}my/', timeout=10).text
         if 'ورود به سامانه' in dashboard_page:
@@ -34,6 +36,7 @@ def session_is_connected(session: requests.Session):
 
 
 def get_student_courses(session: requests.Session):
+    """ Find all student courses """
     try:
         courses = []
         dashboard_page = BeautifulSoup(session.get(f'{BASE_URL}my/', timeout=10).content, 'html.parser')
@@ -49,6 +52,7 @@ def get_student_courses(session: requests.Session):
 
 
 def get_course_activities(session: requests.Session, course_id: str):
+    """ Find all activities of a course """
     try:
         course_page = BeautifulSoup(session.get(f'{BASE_URL}course/view.php?id={course_id}', timeout=10).content,
                                     'html.parser')
@@ -71,6 +75,7 @@ def get_course_activities(session: requests.Session, course_id: str):
 
 
 def get_events(session: requests.Session):
+    """ Find upcoming events """
     events_list = []
     if session:
         try:
@@ -104,4 +109,5 @@ def get_events(session: requests.Session):
 
 
 def clear_text(text: str):
+    """ Clear text """
     return ' '.join(text.split())

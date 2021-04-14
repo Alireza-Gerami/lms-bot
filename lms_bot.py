@@ -1,4 +1,5 @@
-import logging, requests
+import logging
+import requests
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
@@ -11,13 +12,24 @@ PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 logger = logging.getLogger(__name__)
 
+# Conversation handler states
 LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT = range(5)
+
+# Reply keyboards
+reply_keyboard_login = [['ورود به سامانه']]
+reply_keyboard_menu_first = [['نمایش رویدادهای نزدیک'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+reply_keyboard_menu_second = [['نمایش رویدادهای نزدیک'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+
+# General messages
+restart_msg = 'لطفا دوباره با ارسال /start شروع کن.'
+goodbye_msg = 'به امید دیدار' \
+              '\nبرای شروع دوباره /start را بفرست.'
 
 
 def start(update: Update, context: CallbackContext):
-    reply_keyboard = [['ورود به سامانه']]
-    markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
+    """ Start bot with /start command """
     context.user_data['started'] = True
+    markup = ReplyKeyboardMarkup(reply_keyboard_login, one_time_keyboard=True, resize_keyboard=True)
     update.message.reply_text(
         f' سلام {update.message.chat.first_name}'
         '\nبه ربات LMS دانشگاه خوش آمدی'
@@ -29,12 +41,14 @@ def start(update: Update, context: CallbackContext):
 
 
 def username(update: Update, _: CallbackContext):
+    """ Getting login information """
     update.message.reply_text(
         'لطفا نام کاربری را وارد کن', reply_markup=ForceReply())
     return PASSWORD
 
 
 def password(update: Update, context: CallbackContext):
+    """ Getting login information """
     context.user_data['username'] = update.message.text
     update.message.reply_text(
         'لطفا رمز ورود را وارد کن', reply_markup=ForceReply())
@@ -42,6 +56,7 @@ def password(update: Update, context: CallbackContext):
 
 
 def login(update: Update, context: CallbackContext):
+    """ Login to lms and set session """
     chat_id = update.message.chat_id
     context.user_data['password'] = update.message.text
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
@@ -49,12 +64,12 @@ def login(update: Update, context: CallbackContext):
     if session:
         chat_id = update.message.chat_id
         if job_if_exists(str(chat_id), context):
-            reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+            reply_keyboard = reply_keyboard_menu_second
         else:
-            reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+            reply_keyboard = reply_keyboard_menu_first
         context.user_data['session'] = session
     else:
-        reply_keyboard = [['ورود به سامانه']]
+        reply_keyboard = reply_keyboard_login
     markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
     update.message.reply_text(
         reply_msg,
@@ -64,9 +79,10 @@ def login(update: Update, context: CallbackContext):
 
 
 def events(update: Update, context: CallbackContext):
+    """ Show upcoming events """
     context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
+        reply_msg = restart_msg
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not session_is_connected(context.user_data['session']):
@@ -84,12 +100,14 @@ def events(update: Update, context: CallbackContext):
 
 
 def session_exists(context: CallbackContext):
+    """ Check user is login """
     if 'session' in context.user_data:
         return True
     return False
 
 
 def job_if_exists(name: str, context: CallbackContext, remove=False):
+    """ Check job is exists in bot job_queue """
     current_jobs = context.job_queue.get_jobs_by_name(name)
     if not current_jobs:
         return False
@@ -100,6 +118,7 @@ def job_if_exists(name: str, context: CallbackContext, remove=False):
 
 
 def alert(context: CallbackContext):
+    """ Send notification if new activity added """
     job = context.job
     if not session_is_connected(job.context.user_data['session']):
         session, msg = sign_in(job.context.user_data['username'], job.context.user_data["password"])
@@ -124,11 +143,12 @@ def alert(context: CallbackContext):
 
 
 def set_alert(update: Update, context: CallbackContext):
+    """ Set notification of new activities """
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کن.'
+        reply_msg = restart_msg
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not job_if_exists(str(chat_id), context):
@@ -146,7 +166,7 @@ def set_alert(update: Update, context: CallbackContext):
                 else:
                     reply_msg = msg
             if reply_msg != msg:
-                reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+                reply_keyboard = reply_keyboard_menu_second
                 markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
                 context.user_data['alert'] = True
                 context.user_data['chat_id'] = chat_id
@@ -163,15 +183,16 @@ def set_alert(update: Update, context: CallbackContext):
 
 
 def unset_alert(update: Update, context: CallbackContext):
+    """ Unset notification of new activities """
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کن.'
+        reply_msg = restart_msg
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if job_if_exists(str(chat_id), context, remove=True):
-        reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+        reply_keyboard = reply_keyboard_menu_first
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
         reply_msg = 'اطلاع رسانی فعالیت جدید غیر فعال شد.'
         context.user_data['alert'] = False
@@ -185,53 +206,48 @@ def unset_alert(update: Update, context: CallbackContext):
 
 
 def confirm_exit(update: Update, context: CallbackContext):
+    """ Confirm exit if user sets alert """
     if update.message.text == 'آره':
         chat_id = update.message.chat_id
         job_if_exists(str(chat_id), context, remove=True)
         context.user_data.clear()
-        update.message.reply_text(
-            'به امید دیدار'
-            '\nبرای شروع دوباره /start را بفرست.',
-            reply_markup=ReplyKeyboardRemove()
-        )
+        update.message.reply_text(goodbye_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
-    else:
-        reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-        update.message.reply_text('خوشحالم برگشتی', reply_markup=markup)
-        return MENU
+    reply_keyboard = reply_keyboard_menu_second
+    markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+    update.message.reply_text('خوشحالم برگشتی', reply_markup=markup)
+    return MENU
 
 
 def exit(update: Update, context: CallbackContext):
+    """ Exit with /exit command after confirmation """
     if 'alert' in context.user_data and context.user_data['alert']:
         reply_keyboard = [['آره'], ['نه']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
         reply_msg = 'اطلاع رسانی فعال است که با خارج شدن شما غیر فعال می شود. آیا می خواهید خارج بشی؟'
         update.message.reply_text(reply_msg, reply_markup=markup)
         return CONFIRM_EXIT
-    else:
-        context.user_data.clear()
-        update.message.reply_text(
-            'به امید دیدار'
-            '\nبرای شروع دوباره /start را بفرست.',
-            reply_markup=ReplyKeyboardRemove()
-        )
-        return ConversationHandler.END
+    context.user_data.clear()
+    update.message.reply_text(goodbye_msg, reply_markup=ReplyKeyboardRemove())
+    return ConversationHandler.END
 
 
 def error(update: object, context: CallbackContext):
+    """ Log errors """
     logger.warning(f'Update {update} caused error {context.error}')
 
 
 def unknown_handler(update: Update, context: CallbackContext):
+    """ Handle unknown messages or commands """
     if session_exists(context) or ('started' in context.user_data and context.user_data['started']):
         reply_msg = 'این دستور وجود ندارد.'
     else:
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کن.'
+        reply_msg = restart_msg
     update.message.reply_text(reply_msg)
 
 
 def keep_awake_heroku(_: CallbackContext):
+    """ Keep awake heroku app """
     requests.get(f'https://{HEROKU_APP_NAME}.herokuapp.com/')
     logger.info('Send request to keep awake.')
 
@@ -240,6 +256,7 @@ def main():
     updater = Updater(TOKEN, use_context=True)
 
     dispatcher = updater.dispatcher
+
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -247,7 +264,7 @@ def main():
             PASSWORD: [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^خروج$')), password)],
             LOGIN: [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^خروج$')), login)],
             MENU: [
-                MessageHandler(Filters.regex('^نمایش رویدادها$'), events),
+                MessageHandler(Filters.regex('^نمایش رویدادهای نزدیک$'), events),
                 MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert),
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
             ],
@@ -257,6 +274,7 @@ def main():
     )
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
+
     job_queue = dispatcher.job_queue
     job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
 
