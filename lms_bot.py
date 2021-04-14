@@ -11,7 +11,7 @@ PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 logger = logging.getLogger(__name__)
 
-LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT = range(6)
+LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT = range(5)
 
 
 def start(update: Update, context: CallbackContext):
