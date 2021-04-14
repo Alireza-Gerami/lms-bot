@@ -11,7 +11,7 @@ PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 logger = logging.getLogger(__name__)
 
-LOGIN, USERNAME, PASSWORD, MENU = range(4)
+LOGIN, USERNAME, PASSWORD, MENU, EXIT, CONFIRM_EXIT = range(6)
 
 
 def start(update: Update, context: CallbackContext):
@@ -22,7 +22,7 @@ def start(update: Update, context: CallbackContext):
         f' سلام {update.message.chat.first_name}'
         '\nبه ربات LMS دانشگاه خوش آمدی'
         '\nبرای ادامه کار باید وارد سامانه بشی. (نام کاربری و پسورد هرگز ذخیره نمی شود)'
-        '\nاگر منصرف شدی میتونی /cancel رو بفرستی.',
+        '\nاگر منصرف شدی میتونی /exit رو بفرستی.',
         reply_markup=markup
     )
     return USERNAME
@@ -128,7 +128,7 @@ def set_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کن.'
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not job_if_exists(str(chat_id), context):
@@ -148,7 +148,7 @@ def set_alert(update: Update, context: CallbackContext):
             if reply_msg != msg:
                 reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
                 markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-
+                context.user_data['alert'] = True
                 context.user_data['chat_id'] = chat_id
                 context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=2 * 60 * 60)
         else:
@@ -167,13 +167,14 @@ def unset_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کن.'
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if job_if_exists(str(chat_id), context, remove=True):
         reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
         reply_msg = 'اطلاع رسانی فعالیت جدید غیر فعال شد.'
+        context.user_data['alert'] = False
     else:
         reply_msg = 'اطلاع رسانی غیر فعال است.'
     if markup:
@@ -183,14 +184,37 @@ def unset_alert(update: Update, context: CallbackContext):
     return MENU
 
 
-def cancel(update: Update, context: CallbackContext):
-    context.user_data['started'] = False
-    update.message.reply_text(
-        'به امید دیدار'
-        '\nبرای شروع دوباره /start رو بفرست.',
-        reply_markup=ReplyKeyboardRemove()
-    )
-    return ConversationHandler.END
+def confirm_exit(update: Update, context: CallbackContext):
+    if update.message.text == 'آره':
+        context.user_data.clear()
+        update.message.reply_text(
+            'به امید دیدار'
+            '\nبرای شروع دوباره /start را بفرست.',
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return ConversationHandler.END
+    else:
+        reply_keyboard = [['نمایش رویدادها'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+        update.message.reply_text('خوشحالم برگشتی', reply_markup=markup)
+        return MENU
+
+
+def exit(update: Update, context: CallbackContext):
+    if 'alert' in context.user_data and context.user_data['alert']:
+        reply_keyboard = [['آره'], ['نه']]
+        markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+        reply_msg = 'اطلاع رسانی فعال است که با خارج شدن شما غیر فعال می شود. آیا می خواهید خارج بشی؟'
+        update.message.reply_text(reply_msg, reply_markup=markup)
+        return CONFIRM_EXIT
+    else:
+        context.user_data.clear()
+        update.message.reply_text(
+            'به امید دیدار'
+            '\nبرای شروع دوباره /start را بفرست.',
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return ConversationHandler.END
 
 
 def error(update: object, context: CallbackContext):
@@ -198,10 +222,10 @@ def error(update: object, context: CallbackContext):
 
 
 def unknown_handler(update: Update, context: CallbackContext):
-    if session_exists(context) or context.user_data['started']:
+    if session_exists(context) or ('started' in context.user_data and context.user_data['started']):
         reply_msg = 'این دستور وجود ندارد.'
     else:
-        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کن.'
     update.message.reply_text(reply_msg)
 
 
@@ -214,7 +238,13 @@ def main():
     updater = Updater(TOKEN, use_context=True)
 
     dispatcher = updater.dispatcher
-
+    exit_handler = ConversationHandler(
+        [CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit)],
+        states={
+            CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)]
+        },
+        fallbacks=[]
+    )
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -225,9 +255,10 @@ def main():
                 MessageHandler(Filters.regex('^نمایش رویدادها$'), events),
                 MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert),
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
-            ]
+            ],
+            EXIT: exit_handler
         },
-        fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج$'), cancel)],
+        fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit)],
     )
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
