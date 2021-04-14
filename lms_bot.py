@@ -11,7 +11,7 @@ PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 logger = logging.getLogger(__name__)
 
-LOGIN, USERNAME, PASSWORD = range(3)
+LOGIN, USERNAME, PASSWORD, MENU = range(4)
 
 
 def start(update: Update, _: CallbackContext):
@@ -62,7 +62,7 @@ def login(update: Update, context: CallbackContext):
         reply_msg,
         reply_markup=markup,
     )
-    return ConversationHandler.END if session else USERNAME
+    return MENU if session else USERNAME
 
 
 def events(update: Update, context: CallbackContext):
@@ -82,6 +82,7 @@ def events(update: Update, context: CallbackContext):
             for event in events_list:
                 reply_msg += f'نام درس:   {event["lesson"]}\nعنوان فعالیت:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت:   {event["status"]}\n\n'
     update.message.reply_text(reply_msg)
+    return MENU
 
 
 def session_exists(context: CallbackContext):
@@ -160,6 +161,7 @@ def set_alert(update: Update, context: CallbackContext):
         update.message.reply_text(reply_msg, reply_markup=markup)
     else:
         update.message.reply_text(reply_msg)
+    return MENU
 
 
 def unset_alert(update: Update, context: CallbackContext):
@@ -180,6 +182,7 @@ def unset_alert(update: Update, context: CallbackContext):
         update.message.reply_text(reply_msg, reply_markup=markup)
     else:
         update.message.reply_text(reply_msg)
+    return MENU
 
 
 def cancel(update: Update, _: CallbackContext):
@@ -211,15 +214,15 @@ def main():
             USERNAME: [MessageHandler(Filters.regex('^ورود به سامانه$'), username)],
             PASSWORD: [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^خروج$')), password)],
             LOGIN: [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^خروج$')), login)],
+            MENU: [
+                MessageHandler(Filters.regex('^نمایش رویدادها$'), events),
+                MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert),
+                MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
+            ]
         },
         fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج$'), cancel)],
     )
     dispatcher.add_handler(conv_handler)
-    dispatcher.add_handler(MessageHandler(Filters.regex('^نمایش رویدادها$'), events))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert))
-    dispatcher.add_handler(MessageHandler(Filters.regex('^خروج$'), cancel))
-    dispatcher.add_handler(CommandHandler('cancel', cancel))
 
     job_queue = dispatcher.job_queue
     job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
