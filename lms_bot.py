@@ -68,11 +68,9 @@ def login(update: Update, context: CallbackContext):
 def events(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره وارد شوید.'
-        reply_keyboard = [['ورود به سامانه']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
-        update.message.reply_text(reply_msg, reply_markup=markup)
-        return USERNAME
+        reply_msg = 'لطفا دوباره با ارسال start/  شروع کنید.'
+        update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
     if not session_is_connected(context.user_data['session']):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
         context.user_data['session'] = session
@@ -131,11 +129,9 @@ def set_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره وارد شوید.'
-        reply_keyboard = [['ورود به سامانه']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
-        update.message.reply_text(reply_msg, reply_markup=markup)
-        return USERNAME
+        reply_msg = 'لطفا دوباره با ارسال start/  شروع کنید.'
+        update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
     if not job_if_exists(str(chat_id), context):
         reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
         if not session_is_connected(context.user_data['session']):
@@ -171,11 +167,9 @@ def unset_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره وارد شوید.'
-        reply_keyboard = [['ورود به سامانه']]
-        markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
-        update.message.reply_text(reply_msg, reply_markup=markup)
-        return USERNAME
+        reply_msg = 'لطفا دوباره با ارسال start/  شروع کنید.'
+        update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
     if job_if_exists(str(chat_id), context, remove=True):
         reply_keyboard = [['نمایش رویدادها'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
