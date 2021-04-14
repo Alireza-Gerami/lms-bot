@@ -11,7 +11,7 @@ PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 logger = logging.getLogger(__name__)
 
-LOGIN, USERNAME, PASSWORD, MENU, EXIT, CONFIRM_EXIT = range(6)
+LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT = range(6)
 
 
 def start(update: Update, context: CallbackContext):
@@ -239,12 +239,13 @@ def main():
 
     dispatcher = updater.dispatcher
     exit_handler = ConversationHandler(
-        [CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit)],
+        entry_points=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit)],
         states={
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)]
         },
         fallbacks=[]
     )
+    dispatcher.add_handler(exit_handler)
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
@@ -256,7 +257,6 @@ def main():
                 MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert),
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
             ],
-            EXIT: [exit_handler]
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit)],
     )
