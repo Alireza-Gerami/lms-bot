@@ -186,6 +186,8 @@ def unset_alert(update: Update, context: CallbackContext):
 
 def confirm_exit(update: Update, context: CallbackContext):
     if update.message.text == 'آره':
+        chat_id = update.message.chat_id
+        job_if_exists(str(chat_id), context, remove=True)
         context.user_data.clear()
         update.message.reply_text(
             'به امید دیدار'
