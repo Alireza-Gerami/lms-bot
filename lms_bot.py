@@ -100,13 +100,17 @@ def alert(context: CallbackContext):
         activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
         last_activities_id = job.context.user_data[course['id']]
         if len(activities) != len(last_activities_id):
-            reply_msg = '\n\n\U0001F514  فعالیت جدید اضافه شد \U0001F514'
+            new_activities_id = []
+            reply_msg = '\n\U0001F514  فعالیت های جدیدی اضافه شد \U0001F514\n\n'
             for activity in activities:
                 if activity['id'] not in last_activities_id:
                     reply_msg += f'نام درس:  {course["name"]}\nفعالیت های جدید:   '
                     status = "مشاهده شده است. \U00002705" if activity[
                                                                  "status"] == "0" else "مشاهده نشده است. \U0000274C"
-                    reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n'
+                    reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n\n'
+                    new_activities_id.append(activity['id'])
+            last_activities_id.extend(new_activities_id)
+            job.context.user_data[course['id']] = last_activities_id
             context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
@@ -134,7 +138,7 @@ def set_alert(update: Update, context: CallbackContext):
 
                 context.user_data['chat_id'] = chat_id
                 context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=2 * 60 * 60)
-        else:   
+        else:
             reply_msg = msg
     else:
         reply_msg = 'اطلاع رسانی فعال است.'
@@ -173,7 +177,7 @@ def error(update: Update, context: CallbackContext):
     logger.warning(f'Update {update} caused error {context.error}')
 
 
-def keep_awake_heroku(context: CallbackContext):
+def keep_awake_heroku(_: CallbackContext):
     requests.get(f'https://{HEROKU_APP_NAME}.herokuapp.com/')
     logger.info('Send request to keep awake.')
 
