@@ -1,6 +1,6 @@
 import logging, requests
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
-from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update
+from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected)
 
@@ -29,17 +29,14 @@ def start(update: Update, _: CallbackContext):
 
 def username(update: Update, _: CallbackContext):
     update.message.reply_text(
-        'لطفا نام کاربری را وارد کن',
-        reply_markup=ReplyKeyboardRemove(),
-    )
+        'لطفا نام کاربری را وارد کن', reply_markup=ForceReply())
     return PASSWORD
 
 
 def password(update: Update, context: CallbackContext):
     context.user_data['username'] = update.message.text
     update.message.reply_text(
-        'لطفا رمز ورود را وارد کن'
-    )
+        'لطفا رمز ورود را وارد کن', reply_markup=ForceReply())
     return LOGIN
 
 
@@ -194,8 +191,16 @@ def cancel(update: Update, _: CallbackContext):
     return ConversationHandler.END
 
 
-def error(update: Update, context: CallbackContext):
+def error(update: object, context: CallbackContext):
     logger.warning(f'Update {update} caused error {context.error}')
+
+
+def unknown_handler(update: Update, context: CallbackContext):
+    if session_exists(context):
+        reply_msg = 'این دستور وجود ندارد.'
+    else:
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
+    update.message.reply_text(reply_msg)
 
 
 def keep_awake_heroku(_: CallbackContext):
@@ -223,7 +228,7 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج$'), cancel)],
     )
     dispatcher.add_handler(conv_handler)
-
+    dispatcher.add_handler(MessageHandler(Filters.command | ~Filters.reply, unknown_handler))
     job_queue = dispatcher.job_queue
     job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
 
