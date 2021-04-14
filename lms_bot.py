@@ -68,7 +68,7 @@ def login(update: Update, context: CallbackContext):
 def events(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال start/  شروع کنید.'
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not session_is_connected(context.user_data['session']):
@@ -129,7 +129,7 @@ def set_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال start/  شروع کنید.'
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not job_if_exists(str(chat_id), context):
@@ -167,7 +167,7 @@ def unset_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     markup = None
     if not session_exists(context):
-        reply_msg = 'لطفا دوباره با ارسال start/  شروع کنید.'
+        reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if job_if_exists(str(chat_id), context, remove=True):
