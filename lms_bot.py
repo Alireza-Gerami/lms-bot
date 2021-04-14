@@ -230,7 +230,7 @@ def main():
         fallbacks=[CommandHandler('cancel', cancel), MessageHandler(Filters.regex('^خروج$'), cancel)],
     )
     dispatcher.add_handler(conv_handler)
-    dispatcher.add_handler(MessageHandler(Filters.command | ~Filters.reply, unknown_handler))
+    dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
     job_queue = dispatcher.job_queue
     job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
 
