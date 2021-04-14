@@ -14,9 +14,10 @@ logger = logging.getLogger(__name__)
 LOGIN, USERNAME, PASSWORD, MENU = range(4)
 
 
-def start(update: Update, _: CallbackContext):
+def start(update: Update, context: CallbackContext):
     reply_keyboard = [['ورود به سامانه']]
     markup = ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
+    context.user_data['started'] = True
     update.message.reply_text(
         f' سلام {update.message.chat.first_name}'
         '\nبه ربات LMS دانشگاه خوش آمدی'
@@ -182,7 +183,8 @@ def unset_alert(update: Update, context: CallbackContext):
     return MENU
 
 
-def cancel(update: Update, _: CallbackContext):
+def cancel(update: Update, context: CallbackContext):
+    context.user_data['started'] = False
     update.message.reply_text(
         'به امید دیدار'
         '\nبرای شروع دوباره /start رو بفرست.',
@@ -196,7 +198,7 @@ def error(update: object, context: CallbackContext):
 
 
 def unknown_handler(update: Update, context: CallbackContext):
-    if session_exists(context):
+    if session_exists(context) or context.user_data['started']:
         reply_msg = 'این دستور وجود ندارد.'
     else:
         reply_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
