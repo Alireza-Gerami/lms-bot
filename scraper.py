@@ -79,12 +79,15 @@ def get_events(session: requests.Session):
             events = events_page.find_all('div', {'class': 'event'})
             for event in events:
                 event_name = clear_text(
-                    str(event.find('div', {'class': 'card'}).find('h3', {'class': 'name'}).text)).replace('is due', '')
+                    str(event.find('div', {'class': 'card'}).find('h3', {'class': 'name'}).text))
                 event_description = event.find('div', {'class': 'description'})
                 event_lesson_name = clear_text(str(event_description.find_all('div')[-1].text))
                 event_deadline = clear_text(str(event_description.find_all('div')[0].text))
-                event_status = 'تحویل داده شده است. \U00002705' if 'رفتن به فعالیت' in event.find('a', {
-                    'class': 'card-link'}).text else 'تحویل داده نشده است. \U0000274C'
+                if 'closes' in event_name or 'opens' in event_name:
+                    event_status = 'انجام نشده است. \U0000274C'
+                else:
+                    event_status = 'تحویل داده شده است. \U00002705' if 'رفتن به فعالیت' in event.find('a', {
+                        'class': 'card-link'}).text else 'تحویل داده نشده است. \U0000274C'
                 events_list.append({
                     'name': event_name,
                     'lesson': event_lesson_name,
