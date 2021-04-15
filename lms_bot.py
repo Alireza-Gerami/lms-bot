@@ -266,8 +266,7 @@ def keep_awake_heroku(_: CallbackContext):
 def admin(update: Update, _: CallbackContext):
     chat_id = update.message.chat_id
     if chat_id == ADMIN_CHAT_ID:
-        update.message.reply_text('حالت ادمین فعال شد.\n لطفا پیام خود را برای ارسال به کاربران بفرستید',
-                                  reply_markup=ReplyKeyboardRemove())
+        update.message.reply_text('حالت ادمین فعال شد.\n لطفا پیام خود را برای ارسال به کاربران بفرستید')
         return BROADCAST
     return ConversationHandler.END
 
