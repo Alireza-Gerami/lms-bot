@@ -29,6 +29,19 @@ reply_keyboard_menu_first = [['نمایش رویدادهای نزدیک'], ['ف�
 reply_keyboard_menu_second = [['نمایش رویدادهای نزدیک'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
 
 # General messages
+welcome_msg = '''**سلام  ربات LMS دانشگاه بجنورد هستم**
+من اینجام که بهت کمک کنم تا دیگه** تمرین‌ها** و **امتحان‌ها** رو یادت نره
+
+ویژگی‌های من:
+
+🔹مشاهده رویدادهای نزدیک \(مثل تمرین‌ها و امتحان‌ها\)
+🔹اطلاع رسانی فعالیت‌های جدیدی که برای هر درس اضافه میشه
+
+**⚠️برای  شروع باید وارد سامانه LMS بشی اما نگران نباش، نام کاربری و رمز عبور رو به هیچ عنوان ذخیره نمی‌کنم⚠️**
+
+اگر انتقاد یا پیشنهادی داری میتونی به خالق من @IchBin\_Alireza پیام بدی\.
+[Github](https://github.com/Alireza-Gerami/lms-bot)
+[LMS](https://vlms.ub.ac.ir/)'''
 restart_msg = 'لطفا دوباره با ارسال /start شروع کن.'
 goodbye_msg = 'به امید دیدار' \
               '\nبرای شروع دوباره /start را بفرست.'
@@ -38,16 +51,20 @@ def start(update: Update, context: CallbackContext):
     """ Start bot with /start command """
     chat_id = update.message.chat_id
     user_name = update.message.from_user.username
-    db.set(user_name, chat_id)
-    context.user_data['started'] = True
     markup = ReplyKeyboardMarkup(reply_keyboard_login, one_time_keyboard=True, resize_keyboard=True)
-    update.message.reply_text(
-        f' سلام {update.message.chat.first_name}'
-        '\nبه ربات LMS دانشگاه خوش آمدی'
-        '\nبرای ادامه کار باید وارد سامانه بشی. (نام کاربری و پسورد هرگز ذخیره نمی شود)'
-        '\nاگر منصرف شدی میتونی /exit رو بفرستی.',
-        reply_markup=markup
-    )
+    if not db.exists(chat_id):
+        update.message.reply_text(welcome_msg, reply_markup=markup, parse_mode='MarkdownV2')
+        db.set(chat_id, user_name)
+    else:
+        update.message.reply_text(
+            f' سلام {update.message.chat.first_name}'
+            '\nبه ربات LMS دانشگاه خوش آمدی'
+            '\nبرای ادامه کار باید وارد سامانه بشی. (نام کاربری و رمز ورود هرگز ذخیره نمی شود)'
+            '\nاگر منصرف شدی میتونی /exit رو بفرستی.',
+            reply_markup=markup
+        )
+    context.user_data['started'] = True
+
     return USERNAME
 
 
@@ -273,9 +290,9 @@ def admin(update: Update, _: CallbackContext):
 
 def broadcast(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
-    if chat_id == ADMIN_CHAT_ID:
+    if chat_id == ADMIN_CHAT_ID and update.message.text != 'cancel':
         for key in db.keys():
-            context.bot.sendMessage(db.get(key).decode(), update.message.text)
+            context.bot.sendMessage(key.decode(), update.message.text)
         update.message.reply_text('پیام به کاربران ارسال شد.')
     return ConversationHandler.END
 
