@@ -14,13 +14,14 @@ HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 DB_HOST = config('DB_HOST')
 DB_PORT = int(config('DB_PORT'))
 DB_PASSWORD = config('DB_PASSWORD')
+ADMIN_CHAT_ID = config('ADMIN_CHAT_ID')
 
 # Redis db to save chat_id
 db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
 logger = logging.getLogger(__name__)
 
 # Conversation handler states
-LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT = range(5)
+LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT, BROADCAST = range(6)
 
 # Reply keyboards
 reply_keyboard_login = [['ورود به سامانه']]
@@ -262,6 +263,24 @@ def keep_awake_heroku(_: CallbackContext):
     logger.info('Send request to keep awake.')
 
 
+def admin(update: Update, _: CallbackContext):
+    chat_id = update.message.chat_id
+    if chat_id == ADMIN_CHAT_ID:
+        update.message.reply_text('حالت ادمین فعال شد.\n لطفا پیام خود را برای ارسال به کاربران بفرستید',
+                                  reply_markup=ReplyKeyboardRemove())
+        return BROADCAST
+    return ConversationHandler.END
+
+
+def broadcast(update: Update, context: CallbackContext):
+    chat_id = update.message.chat_id
+    if chat_id == ADMIN_CHAT_ID:
+        for key in db.keys():
+            context.bot.sendMessage(db.get(key).decode(), update.message.text)
+        update.message.reply_text('پیام به کاربران ارسال شد.')
+    return ConversationHandler.END
+
+
 def main():
     updater = Updater(TOKEN, use_context=True)
 
@@ -283,7 +302,15 @@ def main():
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
                    CommandHandler('start', start)],
     )
+    admin_handler = ConversationHandler(
+        entry_points=[CommandHandler('admin', admin)],
+        states={
+            BROADCAST: [MessageHandler(Filters.text, broadcast)]
+        },
+        fallbacks=[]
+    )
     dispatcher.add_handler(conv_handler)
+    dispatcher.add_handler(admin_handler)
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
 
     job_queue = dispatcher.job_queue
