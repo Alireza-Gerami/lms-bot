@@ -14,7 +14,7 @@ HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 DB_HOST = config('DB_HOST')
 DB_PORT = int(config('DB_PORT'))
 DB_PASSWORD = config('DB_PASSWORD')
-ADMIN_CHAT_ID = config('ADMIN_CHAT_ID')
+ADMIN_CHAT_ID = int(config('ADMIN_CHAT_ID'))
 
 # Redis db to save chat_id
 db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
