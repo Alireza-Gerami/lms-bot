@@ -35,8 +35,6 @@ goodbye_msg = 'به امید دیدار' \
 
 def start(update: Update, context: CallbackContext):
     """ Start bot with /start command """
-    if 'started' in context.user_data and context.user_data['started']:
-        exit(update, context)
     chat_id = update.message.chat_id
     user_name = update.message.from_user.username
     db.set(user_name, chat_id)
