@@ -1,5 +1,6 @@
 import logging
 import requests
+import redis
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
@@ -10,6 +11,12 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 TOKEN = config('TOKEN')
 PORT = int(config('PORT'))
 HEROKU_APP_NAME = config('HEROKU_APP_NAME')
+DB_HOST = config('DB_HOST')
+DB_PORT = int(config('DB_PORT'))
+DB_PASSWORD = config('DB_PASSWORD')
+
+# Redis db to save chat_id
+db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
 logger = logging.getLogger(__name__)
 
 # Conversation handler states
@@ -28,6 +35,11 @@ goodbye_msg = 'به امید دیدار' \
 
 def start(update: Update, context: CallbackContext):
     """ Start bot with /start command """
+    if 'started' in context.user_data and context.user_data['started']:
+        exit(update, context)
+    chat_id = update.message.chat_id
+    user_name = update.message.from_user.username
+    db.set(user_name, chat_id)
     context.user_data['started'] = True
     markup = ReplyKeyboardMarkup(reply_keyboard_login, one_time_keyboard=True, resize_keyboard=True)
     update.message.reply_text(
@@ -270,7 +282,8 @@ def main():
             ],
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)],
         },
-        fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit)],
+        fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
+                   CommandHandler('start', start)],
     )
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
