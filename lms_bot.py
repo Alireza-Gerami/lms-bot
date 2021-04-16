@@ -6,6 +6,7 @@ from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Upda
 from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected, BASE_URL)
 from bs4 import BeautifulSoup
+from gdrive import GDrive
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.ERROR)
 
@@ -323,11 +324,16 @@ def upload(update: Update, context: CallbackContext):
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
                     else:
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
-                    update.message.reply_text('در حال آپلود فایل...')
-                    caption = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}'
-                    # update.message.reply_document(document=response.content, filename=filename, caption=caption)
+                    update.message.reply_text('در حال ایجاد لینک دانلود...')
                     with open(filename, 'wb') as f:
                         f.write(response.content)
+                    gdrive = GDrive()
+                    gdrive.login()
+                    folder = gdrive.get_folder('bott-backup-db')
+                    file = gdrive.upload_new_file(filename, folder)
+                    reply_msg = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}\n'
+                    reply_msg += f'[دانلود]({file["webContentLink"]})'
+                    update.message.reply_text(reply_msg, parse_mode='MarkdownV2')
                 else:
                     update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
                 break
