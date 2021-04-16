@@ -285,7 +285,7 @@ def show_course_activities(update: Update, context: CallbackContext):
                     status = "مشاهده شده است. \U00002705" if activity[
                                                                  "status"] == "0" else "مشاهده نشده است. \U0000274C"
                     reply_msg += f'\nعنوان فعالیت:   {activity["name"]}\nوضعیت:   {status}\n'
-                    reply_msg += f'دانلود:   /download_{activity["id"]}'
+                    reply_msg += f'دانلود:   /download_{activity["id"]}\n'
             else:
                 reply_msg = msg
             update.message.reply_text(reply_msg)
@@ -313,21 +313,25 @@ def upload(update: Update, context: CallbackContext):
     for activity in activities:
         if selected_activity_id == activity['id']:
             activity_url = activity['url']
-            response = session.get(activity_url)
-            if response.status_code == 200:
-                if not response.headers.get("Content-Disposition"):  # check activity is video or attachment file
-                    video_page = BeautifulSoup(response.content, 'html.parser')
-                    activity_download_url = video_page.find('source')['src']
-                    response = session.get(activity_download_url)
-                    filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+            try:
+                response = session.get(activity_url)
+                if response.status_code == 200:
+                    if not response.headers.get("Content-Disposition"):  # check activity is video or attachment file
+                        video_page = BeautifulSoup(response.content, 'html.parser')
+                        activity_download_url = video_page.find('source')['src']
+                        response = session.get(activity_download_url)
+                        filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+                    else:
+                        filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+                    update.message.reply_text('در حال آپلود فایل...')
+                    caption = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}'
+                    update.message.reply_document(document=response.content, filename=filename, caption=caption)
                 else:
-                    filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
-                update.message.reply_text('در حال آپلود فایل...')
-                caption = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}'
-                update.message.reply_document(document=response.content, filename=filename, caption=caption)
-            else:
-                update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
-            break
+                    update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
+                break
+            except Exception as e:
+                print(e)
+                update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کن...')
     return COURSES
 
 
