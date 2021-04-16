@@ -1,6 +1,3 @@
-import os
-
-from pip._internal.network.utils import response_chunks
 from pydrive.auth import GoogleAuth
 from pydrive.drive import GoogleDrive
 
