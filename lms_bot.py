@@ -295,6 +295,7 @@ def download(update: Update, context: CallbackContext):
     update.message.reply_text(f' ایدی درس انتخاب شده : {activity_id}')
     return COURSES
 
+
 def confirm_exit(update: Update, context: CallbackContext):
     """ Confirm exit if user sets alert """
     if update.message.text == 'آره':
@@ -376,8 +377,8 @@ def main():
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
                 MessageHandler(Filters.regex('^درس ها$'), show_courses),
             ],
-            COURSES: [MessageHandler(Filters.text, show_course_activities),
-                      MessageHandler(Filters.command & Filters.regex('^/download_'), download)],
+            COURSES: [MessageHandler(Filters.text & ~Filters.command, show_course_activities),
+                      MessageHandler(Filters.command & Filters.regex('^download_'), download)],
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)],
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
