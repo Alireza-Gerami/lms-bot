@@ -4,7 +4,8 @@ import redis
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
-from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected)
+from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected, BASE_URL)
+from bs4 import BeautifulSoup
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.ERROR)
 
@@ -245,6 +246,7 @@ def unset_alert(update: Update, context: CallbackContext):
 
 
 def show_courses(update: Update, context: CallbackContext):
+    """ Show student courses """
     if not session_exists(context):
         reply_msg = restart_msg
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
@@ -263,6 +265,7 @@ def show_courses(update: Update, context: CallbackContext):
 
 
 def show_course_activities(update: Update, context: CallbackContext):
+    """ Show activities of selected course """
     if update.message.text == 'برگشت':
         if 'alert' in context.user_data and context.user_data['alert']:
             reply_keyboard = reply_keyboard_menu_second
@@ -276,6 +279,7 @@ def show_course_activities(update: Update, context: CallbackContext):
         if update.message.text == course['name']:
             activities, msg = get_course_activities(context.user_data['session'], course['id'])
             if activities:
+                context.user_data['selected_course'] = {'name': course['name'], 'activities': activities}
                 reply_msg = f'فعالیت های درس {course["name"]}\n'
                 for activity in activities:
                     status = "مشاهده شده است. \U00002705" if activity[
@@ -290,10 +294,46 @@ def show_course_activities(update: Update, context: CallbackContext):
     return COURSES
 
 
-def download(update: Update, context: CallbackContext):
-    activity_id = update.message.text.split('_')[-1]
-    update.message.reply_text(f' ایدی درس انتخاب شده : {activity_id}')
+def upload(update: Update, context: CallbackContext):
+    """ Upload selected activity """
+    chat_id = update.message.chat_id
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    update.message.reply_text(waiting_msg)
+    if not session_exists(context):
+        reply_msg = restart_msg
+        update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
+    if not session_is_connected(context.user_data['session']):
+        session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+        context.user_data['session'] = session
+    session = context.user_data['session']
+    selected_activity_id = update.message.text.split('_')[-1]
+    selected_course = context.user_data['selected_course']
+    activities = selected_course['activities']
+    for activity in activities:
+        if selected_activity_id == activity['id']:
+            activity_url = activity['url']
+            response = session.get(activity_url)
+            if response.status_code == 200:
+                if not response.headers.get("Content-Disposition"):  # check activity is video or attachment file
+                    video_page = BeautifulSoup(response.content, 'html.parser')
+                    activity_download_url = video_page.find('source')['src']
+                    response = session.get(activity_download_url)
+                    filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+                else:
+                    filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+                update.message.reply_text('در حال آپلود فایل...')
+                caption = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}'
+                update.message.reply_document(document=response.content, filename=filename, caption=caption)
+            else:
+                update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
+            break
     return COURSES
+
+
+def get_filename(activity_name: str, content_description: str):
+    extension = content_description.split('.')[-1][:-1]
+    return f'{activity_name}.{extension}'
 
 
 def confirm_exit(update: Update, context: CallbackContext):
@@ -378,7 +418,7 @@ def main():
                 MessageHandler(Filters.regex('^درس ها$'), show_courses),
             ],
             COURSES: [MessageHandler(Filters.text & ~Filters.command, show_course_activities),
-                      MessageHandler(Filters.command & Filters.regex('^/download_'), download)],
+                      MessageHandler(Filters.command & Filters.regex('^/download_'), upload)],
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)],
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
