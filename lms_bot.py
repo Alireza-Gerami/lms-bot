@@ -378,7 +378,7 @@ def main():
                 MessageHandler(Filters.regex('^درس ها$'), show_courses),
             ],
             COURSES: [MessageHandler(Filters.text & ~Filters.command, show_course_activities),
-                      MessageHandler(Filters.command & Filters.regex('^download_'), download)],
+                      MessageHandler(Filters.command & Filters.regex('^/download_'), download)],
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)],
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
