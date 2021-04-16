@@ -92,7 +92,7 @@ def login(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     session, reply_msg = sign_in(context.user_data['username'], context.user_data["password"])
     if session:
-        courses, reply_msg = get_student_courses(context.user_data['session'])
+        courses, reply_msg = get_student_courses(session)
         if courses:
             chat_id = update.message.chat_id
             if job_if_exists(str(chat_id), context):
