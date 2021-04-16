@@ -327,8 +327,8 @@ def upload(update: Update, context: CallbackContext):
                     else:
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
                     update.message.edit_text('در حال ایجاد لینک دانلود...')
-                    # with open(filename, 'wb') as f:
-                    #     f.write(response.content)
+                    with open(filename, 'wb') as f:
+                        f.write(response.content)
                     gdrive = GDrive()
                     gdrive.login()
                     folder = gdrive.get_folder('bott-backup-db')
