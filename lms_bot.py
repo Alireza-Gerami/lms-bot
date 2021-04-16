@@ -325,7 +325,9 @@ def upload(update: Update, context: CallbackContext):
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
                     update.message.reply_text('در حال آپلود فایل...')
                     caption = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}'
-                    update.message.reply_document(document=response.content, filename=filename, caption=caption)
+                    # update.message.reply_document(document=response.content, filename=filename, caption=caption)
+                    with open(filename, 'wb') as f:
+                        f.write(response.content)
                 else:
                     update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
                 break
