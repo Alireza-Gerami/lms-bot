@@ -1,7 +1,7 @@
 
 # University of Bojnourd LMS Telegram bot
 
-An unofficial LMS Telegram bot has come to help you.\n
+An unofficial LMS Telegram bot has come to help you.  
 Try it now: [@ub_lms_bot](https://t.me/ub_lms_bot)
 
 ## Features
