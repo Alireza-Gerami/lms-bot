@@ -311,6 +311,9 @@ def upload(update: Update, context: CallbackContext):
         context.user_data['session'] = session
     session = context.user_data['session']
     selected_activity_id = update.message.text.split('_')[-1]
+    if 'selected_course' not in context.user_data['selected_course']:
+        update.message.reply_text('لطفا یک درس رو انتخاب کن')
+        return COURSES
     selected_course = context.user_data['selected_course']
     activities = selected_course['activities']
     for activity in activities:
@@ -326,9 +329,9 @@ def upload(update: Update, context: CallbackContext):
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
                     else:
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
-                    update.message.edit_text('در حال ایجاد لینک دانلود...')
-                    with open(filename, 'wb') as f:
-                        f.write(response.content)
+                    update.message.reply_text('در حال ایجاد لینک دانلود...')
+                    # with open(filename, 'wb') as f:
+                    #     f.write(response.content)
                     gdrive = GDrive()
                     gdrive.login()
                     folder = gdrive.get_folder('bott-backup-db')
