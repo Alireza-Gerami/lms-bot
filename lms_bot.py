@@ -1,8 +1,9 @@
 import logging
 import os
-
+import threading
 import requests
 import redis
+import traceback
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
@@ -20,6 +21,10 @@ DB_PORT = int(config('DB_PORT'))
 DB_PASSWORD = config('DB_PASSWORD')
 ADMIN_CHAT_ID = int(config('ADMIN_CHAT_ID'))
 
+# Google drive to upload files
+google_drive = GDrive()
+google_drive.login()
+host_folder = google_drive.get_folder('ub-lms-bot-host')
 # Redis db to save chat_id
 db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
 logger = logging.getLogger(__name__)
@@ -313,6 +318,11 @@ def upload(update: Update, context: CallbackContext):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
         context.user_data['session'] = session
     session = context.user_data['session']
+    threading.Thread(target=generate_download_link, args=(update, context, session)).start()
+    return COURSES
+
+
+def generate_download_link(update: Update, context: CallbackContext, session: requests.Session):
     selected_activity_id = update.message.text.split('_')[-1]
     selected_course = context.user_data['selected_course']
     activities = selected_course['activities']
@@ -330,12 +340,9 @@ def upload(update: Update, context: CallbackContext):
                     else:
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
                     update.message.reply_text('در حال ایجاد لینک دانلود...')
-                    # with open(filename, 'wb') as f:
-                    #     f.write(response.content)
-                    gdrive = GDrive()
-                    gdrive.login()
-                    folder = gdrive.get_folder('bott-backup-db')
-                    file = gdrive.upload_new_file(filename, folder)
+                    with open(filename, 'wb') as f:
+                        f.write(response.content)
+                    file = google_drive.upload_new_file(filename, host_folder)
                     file.InsertPermission({
                         'type': 'anyone',
                         'value': 'anyone',
@@ -348,10 +355,8 @@ def upload(update: Update, context: CallbackContext):
                 else:
                     update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
                 break
-            except Exception as e:
-                print(e)
+            except Exception:
                 update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کن...')
-    return COURSES
 
 
 def get_filename(activity_name: str, content_description: str):
@@ -388,7 +393,7 @@ def exit(update: Update, context: CallbackContext):
 
 def error(update: object, context: CallbackContext):
     """ Log errors """
-    logger.warning(f'Update {update} caused error {context.error}')
+    logger.error(f'{traceback.format_exc()} | {update} | {context.error}')
 
 
 def unknown_handler(update: Update, context: CallbackContext):
