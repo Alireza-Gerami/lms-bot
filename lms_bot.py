@@ -90,9 +90,11 @@ def login(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     context.user_data['password'] = update.message.text
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    update.message.reply_text(waiting_msg)
     session, reply_msg = sign_in(context.user_data['username'], context.user_data["password"])
+    courses = None
     if session:
-        courses, reply_msg = get_student_courses(session)
+        courses, msg = get_student_courses(session)
         if courses:
             chat_id = update.message.chat_id
             if job_if_exists(str(chat_id), context):
@@ -102,6 +104,7 @@ def login(update: Update, context: CallbackContext):
             context.user_data['session'] = session
             context.user_data['courses'] = courses
         else:
+            reply_msg = msg
             reply_keyboard = reply_keyboard_login
     else:
         reply_keyboard = reply_keyboard_login
@@ -110,12 +113,13 @@ def login(update: Update, context: CallbackContext):
         reply_msg,
         reply_markup=markup,
     )
-    return MENU if session else USERNAME
+    return MENU if session and courses else USERNAME
 
 
 def events(update: Update, context: CallbackContext):
     """ Show upcoming events """
-    context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
+    chat_id = update.message.chat_id
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     update.message.reply_text(waiting_msg)
     if not session_exists(context):
         reply_msg = restart_msg
