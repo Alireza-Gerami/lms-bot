@@ -92,12 +92,17 @@ def login(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     session, reply_msg = sign_in(context.user_data['username'], context.user_data["password"])
     if session:
-        chat_id = update.message.chat_id
-        if job_if_exists(str(chat_id), context):
-            reply_keyboard = reply_keyboard_menu_second
+        courses, reply_msg = get_student_courses(context.user_data['session'])
+        if courses:
+            chat_id = update.message.chat_id
+            if job_if_exists(str(chat_id), context):
+                reply_keyboard = reply_keyboard_menu_second
+            else:
+                reply_keyboard = reply_keyboard_menu_first
+            context.user_data['session'] = session
+            context.user_data['courses'] = courses
         else:
-            reply_keyboard = reply_keyboard_menu_first
-        context.user_data['session'] = session
+            reply_keyboard = reply_keyboard_login
     else:
         reply_keyboard = reply_keyboard_login
     markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
@@ -184,27 +189,25 @@ def set_alert(update: Update, context: CallbackContext):
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not job_if_exists(str(chat_id), context):
-        reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
         if not session_is_connected(context.user_data['session']):
             session, msg = sign_in(context.user_data['username'], context.user_data["password"])
             context.user_data['session'] = session
-        courses, msg = get_student_courses(context.user_data['session'])
-        if courses:
-            context.user_data['courses'] = courses
-            for course in courses:
-                activities, msg = get_course_activities(context.user_data['session'], course['id'])
-                if activities:
-                    context.user_data[course['id']] = [activity['id'] for activity in activities]
-                else:
-                    reply_msg = msg
-            if reply_msg != msg:
-                reply_keyboard = reply_keyboard_menu_second
-                markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-                context.user_data['alert'] = True
-                context.user_data['chat_id'] = chat_id
-                context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=2 * 60 * 60)
-        else:
-            reply_msg = msg
+        courses = context.user_data['courses']
+        done = True
+        for course in courses:
+            activities, reply_msg = get_course_activities(context.user_data['session'], course['id'])
+            if activities:
+                context.user_data[course['id']] = [activity['id'] for activity in activities]
+            else:
+                done = False
+                break
+        if done:
+            reply_msg = 'اطلاع رسانی فعالیت جدید فعال شد.'
+            reply_keyboard = reply_keyboard_menu_second
+            markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+            context.user_data['alert'] = True
+            context.user_data['chat_id'] = chat_id
+            context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=1 * 60 * 60)
     else:
         reply_msg = 'اطلاع رسانی فعال است.'
     if markup:
