@@ -326,9 +326,9 @@ def upload(update: Update, context: CallbackContext):
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
                     else:
                         filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
-                    update.message.reply_text('در حال ایجاد لینک دانلود...')
-                    with open(filename, 'wb') as f:
-                        f.write(response.content)
+                    update.message.edit_text('در حال ایجاد لینک دانلود...')
+                    # with open(filename, 'wb') as f:
+                    #     f.write(response.content)
                     gdrive = GDrive()
                     gdrive.login()
                     folder = gdrive.get_folder('bott-backup-db')
@@ -337,7 +337,7 @@ def upload(update: Update, context: CallbackContext):
                         'type': 'anyone',
                         'value': 'anyone',
                         'role': 'reader'})
-                    reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\nعنوان فعالیت:   {activity["name"]}\n\n'
+                    reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\n\nعنوان فعالیت:   {activity["name"]}\n\n'
                     reply_msg += f'<b><a href="{file["webContentLink"]}">📥  دانلود</a></b>\n'
                     reply_msg += f'\n\n@ub_lms_bot\n'
                     os.remove(filename)
