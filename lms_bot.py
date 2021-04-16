@@ -21,12 +21,13 @@ db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
 logger = logging.getLogger(__name__)
 
 # Conversation handler states
-LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT, BROADCAST = range(6)
+LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT, BROADCAST, COURSES = range(7)
 
 # Reply keyboards
 reply_keyboard_login = [['ورود به سامانه']]
-reply_keyboard_menu_first = [['نمایش رویدادهای نزدیک'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
-reply_keyboard_menu_second = [['نمایش رویدادهای نزدیک'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['خروج']]
+reply_keyboard_menu_first = [['نمایش رویدادهای نزدیک'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['درس ها'], ['خروج']]
+reply_keyboard_menu_second = [['نمایش رویدادهای نزدیک'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['درس ها'],
+                              ['خروج']]
 
 # General messages
 welcome_msg = '''**سلام من ربات LMS دانشگاه بجنورد هستم**
@@ -45,12 +46,13 @@ welcome_msg = '''**سلام من ربات LMS دانشگاه بجنورد هست
 restart_msg = 'لطفا دوباره با ارسال /start شروع کن.'
 goodbye_msg = 'به امید دیدار' \
               '\nبرای شروع دوباره /start را بفرست.'
+waiting_msg = 'لطفا چند لحظه منتظر بمون...'
 
 
 def start(update: Update, context: CallbackContext):
     """ Start bot with /start command """
     chat_id = update.message.chat_id
-    user_name = update.message.from_user.username
+    user_name = str(update.message.from_user.username)
     markup = ReplyKeyboardMarkup(reply_keyboard_login, one_time_keyboard=True, resize_keyboard=True)
     if not db.exists(chat_id):
         update.message.reply_text(welcome_msg, reply_markup=markup, parse_mode='MarkdownV2')
@@ -71,7 +73,7 @@ def start(update: Update, context: CallbackContext):
 def username(update: Update, _: CallbackContext):
     """ Getting login information """
     update.message.reply_text(
-        'لطفا نام کاربری را وارد کن', reply_markup=ForceReply())
+        'لطفا نام کاربری رو وارد کن', reply_markup=ForceReply())
     return PASSWORD
 
 
@@ -79,7 +81,7 @@ def password(update: Update, context: CallbackContext):
     """ Getting login information """
     context.user_data['username'] = update.message.text
     update.message.reply_text(
-        'لطفا رمز ورود را وارد کن', reply_markup=ForceReply())
+        'لطفا رمز ورود رو وارد کن', reply_markup=ForceReply())
     return LOGIN
 
 
@@ -109,6 +111,7 @@ def login(update: Update, context: CallbackContext):
 def events(update: Update, context: CallbackContext):
     """ Show upcoming events """
     context.bot.sendChatAction(chat_id=update.message.chat_id, action=ChatAction.TYPING)
+    update.message.reply_text(waiting_msg)
     if not session_exists(context):
         reply_msg = restart_msg
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
@@ -174,6 +177,7 @@ def set_alert(update: Update, context: CallbackContext):
     """ Set notification of new activities """
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    update.message.reply_text(waiting_msg)
     markup = None
     if not session_exists(context):
         reply_msg = restart_msg
@@ -231,6 +235,51 @@ def unset_alert(update: Update, context: CallbackContext):
     else:
         update.message.reply_text(reply_msg)
     return MENU
+
+
+def show_courses(update: Update, context: CallbackContext):
+    if not session_exists(context):
+        reply_msg = restart_msg
+        update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
+    if not session_is_connected(context.user_data['session']):
+        session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+        context.user_data['session'] = session
+    reply_keyboard_courses = []
+    courses = context.user_data['courses']
+    for course in courses:
+        reply_keyboard_courses.append([f'{course["name"]}'])
+    reply_keyboard_courses.append(['برگشت'])
+    markup = ReplyKeyboardMarkup(reply_keyboard_courses, resize_keyboard=True)
+    update.message.reply_text('لطفا یک درس رو انتخاب کن', reply_markup=markup)
+    return COURSES
+
+
+def show_course_activities(update: Update, context: CallbackContext):
+    if update.message.text == 'برگشت':
+        if 'alert' in context.user_data and context.user_data['alert']:
+            reply_keyboard = reply_keyboard_menu_second
+        else:
+            reply_keyboard = reply_keyboard_menu_first
+        markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
+        update.message.reply_text('انجام شد...', reply_markup=markup)
+        return MENU
+    courses = context.user_data['courses']
+    for course in courses:
+        if update.message.text == course['name']:
+            activities, msg = get_course_activities(context.user_data['session'], course['id'])
+            if activities:
+                reply_msg = f'فعالیت های درس {course["name"]}\n'
+                for activity in activities:
+                    status = "مشاهده شده است. \U00002705" if activity[
+                                                                 "status"] == "0" else "مشاهده نشده است. \U0000274C"
+                    reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n        لینک دانلود:   {activity["url"]}\n\n'
+            else:
+                reply_msg = msg
+            update.message.reply_text(reply_msg)
+            return COURSES
+    update.message.reply_text('این درس وجود ندارد!')
+    return COURSES
 
 
 def confirm_exit(update: Update, context: CallbackContext):
@@ -312,7 +361,9 @@ def main():
                 MessageHandler(Filters.regex('^نمایش رویدادهای نزدیک$'), events),
                 MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert),
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
+                MessageHandler(Filters.regex('^درس ها$'), show_courses),
             ],
+            COURSES: [MessageHandler(Filters.text, show_course_activities)],
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)],
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
