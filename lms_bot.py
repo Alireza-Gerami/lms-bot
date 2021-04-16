@@ -280,7 +280,8 @@ def show_course_activities(update: Update, context: CallbackContext):
                 for activity in activities:
                     status = "مشاهده شده است. \U00002705" if activity[
                                                                  "status"] == "0" else "مشاهده نشده است. \U0000274C"
-                    reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n        لینک دانلود:   {activity["url"]}\n\n'
+                    reply_msg += f'\nعنوان فعالیت:   {activity["name"]}\nوضعیت:   {status}\n'
+                    reply_msg += f'دانلود:   /download_{activity["id"]}'
             else:
                 reply_msg = msg
             update.message.reply_text(reply_msg)
@@ -288,6 +289,11 @@ def show_course_activities(update: Update, context: CallbackContext):
     update.message.reply_text('این درس وجود ندارد!')
     return COURSES
 
+
+def download(update: Update, context: CallbackContext):
+    activity_id = update.message.text.split('_')[-1]
+    update.message.reply_text(f' ایدی درس انتخاب شده : {activity_id}')
+    return COURSES
 
 def confirm_exit(update: Update, context: CallbackContext):
     """ Confirm exit if user sets alert """
@@ -370,7 +376,8 @@ def main():
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
                 MessageHandler(Filters.regex('^درس ها$'), show_courses),
             ],
-            COURSES: [MessageHandler(Filters.text, show_course_activities)],
+            COURSES: [MessageHandler(Filters.text, show_course_activities),
+                      MessageHandler(Filters.command & Filters.regex('^/download_'), download)],
             CONFIRM_EXIT: [MessageHandler(Filters.regex('^(آره|نه)$'), confirm_exit)],
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
