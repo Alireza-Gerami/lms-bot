@@ -337,10 +337,11 @@ def upload(update: Update, context: CallbackContext):
                         'type': 'anyone',
                         'value': 'anyone',
                         'role': 'reader'})
-                    reply_msg = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}\n\n📥 '
-                    reply_msg += f'[**دانلود**]({file["webContentLink"]})'
+                    reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\nعنوان فعالیت:   {activity["name"]}\n\n'
+                    reply_msg += f'<b><a href="{file["webContentLink"]}">   دانلود📥</a></b>\n'
+                    reply_msg += f'\n\n<a href="tg://user?id=ub_lms_bot">@ub_lms_bot</a>\n'
                     os.remove(filename)
-                    update.message.reply_text(reply_msg, parse_mode='MarkdownV2')
+                    update.message.reply_text(reply_msg, parse_mode='HTML')
                 else:
                     update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
                 break
