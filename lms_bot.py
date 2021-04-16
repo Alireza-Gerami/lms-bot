@@ -1,4 +1,6 @@
 import logging
+import os
+
 import requests
 import redis
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
@@ -331,8 +333,13 @@ def upload(update: Update, context: CallbackContext):
                     gdrive.login()
                     folder = gdrive.get_folder('bott-backup-db')
                     file = gdrive.upload_new_file(filename, folder)
-                    reply_msg = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}\n'
-                    reply_msg += f'[دانلود]({file["webContentLink"]})'
+                    file.InsertPermission({
+                        'type': 'anyone',
+                        'value': 'anyone',
+                        'role': 'reader'})
+                    reply_msg = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}\n\n<-----'
+                    reply_msg += f'**[دانلود]({file["webContentLink"]})***'
+                    os.remove(filename)
                     update.message.reply_text(reply_msg, parse_mode='MarkdownV2')
                 else:
                     update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
