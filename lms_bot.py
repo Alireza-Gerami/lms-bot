@@ -301,6 +301,9 @@ def upload(update: Update, context: CallbackContext):
     """ Upload selected activity """
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    if 'selected_course' not in context.user_data:
+        update.message.reply_text('لطفا یک درس رو انتخاب کن')
+        return COURSES
     update.message.reply_text(waiting_msg)
     if not session_exists(context):
         reply_msg = restart_msg
@@ -311,9 +314,6 @@ def upload(update: Update, context: CallbackContext):
         context.user_data['session'] = session
     session = context.user_data['session']
     selected_activity_id = update.message.text.split('_')[-1]
-    if 'selected_course' not in context.user_data['selected_course']:
-        update.message.reply_text('لطفا یک درس رو انتخاب کن')
-        return COURSES
     selected_course = context.user_data['selected_course']
     activities = selected_course['activities']
     for activity in activities:
