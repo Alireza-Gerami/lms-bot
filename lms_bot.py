@@ -337,7 +337,7 @@ def upload(update: Update, context: CallbackContext):
                         'type': 'anyone',
                         'value': 'anyone',
                         'role': 'reader'})
-                    reply_msg = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}\n\n<-----'
+                    reply_msg = f'\nنام درس:   {selected_course["name"]}\nعنوان فعالیت:   {activity["name"]}\n\n'
                     reply_msg += f'**[دانلود]({file["webContentLink"]})***'
                     os.remove(filename)
                     update.message.reply_text(reply_msg, parse_mode='MarkdownV2')
