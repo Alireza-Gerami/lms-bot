@@ -24,7 +24,7 @@ ADMIN_CHAT_ID = int(config('ADMIN_CHAT_ID'))
 # Google drive to upload files
 google_drive = GDrive()
 google_drive.login()
-host_folder = google_drive.get_folder('ub-lms-bot-host')
+host_folder = google_drive.get_folder(config('HOST_FOLDER_NAME'))
 # Redis db to save chat_id
 db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
 logger = logging.getLogger(__name__)
