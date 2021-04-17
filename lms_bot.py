@@ -66,11 +66,11 @@ waiting_msg = 'لطفا چند لحظه منتظر بمون...'
 def start(update: Update, context: CallbackContext):
     """ Start bot with /start command """
     chat_id = update.message.chat_id
-    user_name = str(update.message.from_user.username)
+    name = update.message.from_user.username if update.message.from_user.username else update.message.from_user.full_name
     markup = ReplyKeyboardMarkup(reply_keyboard_login, one_time_keyboard=True, resize_keyboard=True)
     if not db.exists(chat_id):
         update.message.reply_text(welcome_msg, reply_markup=markup, parse_mode='MarkdownV2')
-        db.set(chat_id, user_name)
+        db.set(chat_id, name)
     else:
         update.message.reply_text(
             f' سلام {update.message.chat.first_name}'
