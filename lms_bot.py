@@ -19,6 +19,9 @@ HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 DB_HOST = config('DB_HOST')
 DB_PORT = int(config('DB_PORT'))
 DB_PASSWORD = config('DB_PASSWORD')
+DB_UPLOAD_HOST = config('DB_UPLOAD_HOST')
+DB_UPLOAD_PORT = int(config('DB_UPLOAD_PORT'))
+DB_UPLOAD_PASSWORD = config('DB_UPLOAD_PASSWORD')
 ADMIN_CHAT_ID = int(config('ADMIN_CHAT_ID'))
 
 # Google drive to upload files
@@ -27,6 +30,8 @@ google_drive.login()
 host_folder = google_drive.get_folder(config('HOST_FOLDER_NAME'))
 # Redis db to save chat_id
 db = redis.Redis(host=DB_HOST, port=DB_PORT, password=DB_PASSWORD)
+# Redis db to save files download link
+db_upload = redis.Redis(host=DB_UPLOAD_HOST, port=DB_UPLOAD_PORT, password=DB_UPLOAD_PASSWORD)
 logger = logging.getLogger(__name__)
 
 # Conversation handler states
@@ -328,35 +333,48 @@ def generate_download_link(update: Update, context: CallbackContext, session: re
     activities = selected_course['activities']
     for activity in activities:
         if selected_activity_id == activity['id']:
-            activity_url = activity['url']
-            try:
-                response = session.get(activity_url)
-                if response.status_code == 200:
-                    if not response.headers.get("Content-Disposition"):  # check activity is video or attachment file
-                        video_page = BeautifulSoup(response.content, 'html.parser')
-                        activity_download_url = video_page.find('source')['src']
-                        response = session.get(activity_download_url)
-                        filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
-                    else:
-                        filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
-                    update.message.reply_text('در حال ایجاد لینک دانلود...')
-                    with open(filename, 'wb') as f:
-                        f.write(response.content)
-                    file = google_drive.upload_new_file(filename, host_folder)
-                    file.InsertPermission({
-                        'type': 'anyone',
-                        'value': 'anyone',
-                        'role': 'reader'})
-                    reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\n\nعنوان فعالیت:   {activity["name"]}\n\n'
-                    reply_msg += f'<b><a href="{file["webContentLink"]}">📥  دانلود</a></b>\n'
-                    reply_msg += f'\n\n@ub_lms_bot\n'
-                    os.remove(filename)
-                    update.message.reply_text(reply_msg, parse_mode='HTML')
-                else:
-                    update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
+            if db_upload.exists(activity['id']):
+                download_link = db_upload.get(activity['id']).decode()
+                reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\n\nعنوان فعالیت:   {activity["name"]}\n\n'
+                reply_msg += f'<b><a href="{download_link}">📥  دانلود</a></b>\n'
+                reply_msg += f'\n\n@ub_lms_bot\n'
+                update.message.reply_text(reply_msg, parse_mode='HTML')
                 break
-            except Exception:
-                update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کن...')
+            else:
+                activity_url = activity['url']
+                try:
+                    response = session.get(activity_url)
+                    if response.status_code == 200:
+                        if not response.headers.get(
+                                "Content-Disposition"):  # check activity is video or attachment file
+                            video_page = BeautifulSoup(response.content, 'html.parser')
+                            activity_download_url = video_page.find('source')['src']
+                            response = session.get(activity_download_url)
+                            filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+                        else:
+                            filename = get_filename(activity['name'], response.headers.get("Content-Disposition"))
+                        update.message.reply_text('در حال ایجاد لینک دانلود...')
+                        with open(filename, 'wb') as file:
+                            file.write(response.content)
+                        if google_drive.auth.access_token_expired:
+                            google_drive.login()
+                        file = google_drive.upload_new_file(filename, host_folder)
+                        file.InsertPermission({
+                            'type': 'anyone',
+                            'value': 'anyone',
+                            'role': 'reader'})
+                        reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\n\nعنوان فعالیت:   {activity["name"]}\n\n'
+                        reply_msg += f'<b><a href="{file["webContentLink"]}">📥  دانلود</a></b>\n'
+                        reply_msg += f'\n\n@ub_lms_bot\n'
+                        os.remove(filename)
+                        db_upload.set(activity['id'], file["webContentLink"], ex=7 * 24 * 60 * 60)
+                        update.message.reply_text(reply_msg, parse_mode='HTML')
+                    else:
+                        update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
+                    break
+                except Exception as e:
+                    logging.warning(e)
+                    update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کن...')
 
 
 def get_filename(activity_name: str, content_description: str):

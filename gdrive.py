@@ -26,6 +26,13 @@ class GDrive:
         }).GetList()
         return folders[0]
 
+    def get_files(self, folder_id):
+        files = self.drive.ListFile(
+            {'q': f"\'{folder_id}\'" + " in parents and trashed=false"}
+
+        ).GetList()
+        return files
+
     def create_new_folder(self, new_folder_name, parent_folder=None):
         new_folder = self.drive.CreateFile(
             {'title': f'{new_folder_name}',
