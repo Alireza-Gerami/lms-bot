@@ -331,8 +331,10 @@ def generate_download_link(update: Update, context: CallbackContext, session: re
     selected_activity_id = update.message.text.split('_')[-1]
     selected_course = context.user_data['selected_course']
     activities = selected_course['activities']
+    activity_found = False
     for activity in activities:
         if selected_activity_id == activity['id']:
+            activity_found = True
             if db_upload.exists(activity['id']):
                 download_link = db_upload.get(activity['id']).decode()
                 reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\n\nعنوان فعالیت:   {activity["name"]}\n\n'
@@ -375,6 +377,8 @@ def generate_download_link(update: Update, context: CallbackContext, session: re
                 except Exception as e:
                     logging.warning(e)
                     update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کن...')
+    if not activity_found:
+        update.message.reply_text(f'این فعالیت در درس {selected_course["name"]} وجود ندارد!')
 
 
 def get_filename(activity_name: str, content_description: str):
