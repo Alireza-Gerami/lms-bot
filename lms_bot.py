@@ -445,7 +445,10 @@ def broadcast(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     if chat_id == ADMIN_CHAT_ID and update.message.text != 'cancel':
         for key in db.keys():
-            context.bot.sendMessage(key.decode(), update.message.text)
+            try:
+                context.bot.sendMessage(key.decode(), update.message.text)
+            except:
+                pass
         update.message.reply_text('پیام به کاربران ارسال شد.')
     return ConversationHandler.END
 
