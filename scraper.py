@@ -59,14 +59,18 @@ def get_course_activities(session: requests.Session, course_id: str):
         activities_id = list(course_page.find_all('input', {'name': 'id'}))
         activities_name = course_page.find_all('input', {'name': 'modulename'})
         activities_status = course_page.find_all('input', {'name': 'completionstate'})
-
         activities = []
         for idx in range(len(activities_id)):
+            activity_id = activities_id[idx]['value']
+            activity_name = clear_text(activities_name[idx]['value'])
+            activity_status = activities_status[idx]['value']
+            activity_url = f'{BASE_URL}/mod/resource/view.php?id={activity_id}'
             activities.append(
                 {
-                    'id': activities_id[idx]['value'],
-                    'name': clear_text(activities_name[idx]['value']),
-                    'status': clear_text(activities_status[idx]['value']),
+                    'id': activity_id,
+                    'name': activity_name,
+                    'status': activity_status,
+                    'url': activity_url
                 }
             )
         return activities, ''
