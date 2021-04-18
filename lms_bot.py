@@ -182,7 +182,7 @@ def alert(context: CallbackContext):
     for course in courses:
         activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
         last_activities_id = job.context.user_data[course['id']]
-        if len(activities) != len(last_activities_id):
+        if len(activities) > len(last_activities_id):
             new_activities_id = []
             reply_msg = '\n\U0001F514  فعالیت های جدیدی اضافه شد \U0001F514\n\n'
             for activity in activities:

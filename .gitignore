@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .idea
+users-redis.db
 # C extensions
 *.so
 test.py
