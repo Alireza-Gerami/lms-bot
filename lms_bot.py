@@ -142,6 +142,9 @@ def events(update: Update, context: CallbackContext):
         return ConversationHandler.END
     if not session_is_connected(context.user_data['session']):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+        if not session:
+            update.message.reply_text(msg)
+            return MENU
         context.user_data['session'] = session
     events_list, reply_msg = get_events(context.user_data['session'])
     if events_list:
@@ -172,6 +175,22 @@ def job_if_exists(name: str, context: CallbackContext, remove=False):
     return True
 
 
+def alert_deadline(context: CallbackContext):
+    """ Send notification before deadline of an activity """
+    job = context.job
+    if not session_is_connected(job.context.user_data['session']):
+        session, msg = sign_in(job.context.user_data['username'], job.context.user_data["password"])
+        job.context.user_data['session'] = session
+    events_list, msg = get_events(job.context.user_data['session'])
+    if events_list:
+        reply_msg = '\n\U0001F514  پایان مهلت فعالیت های زیر نزدیک است \U0001F514\n\n'
+        for event in events_list:
+            if 'نشده' in event['status'] and ('فردا' in event['deadline'] or 'امروز' in event['deadline']):
+                reply_msg += f'نام درس:   {event["lesson"]}\nعنوان فعالیت:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت:   {event["status"]}\n\n'
+
+        context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
+
+
 def alert(context: CallbackContext):
     """ Send notification if new activity added """
     job = context.job
@@ -181,20 +200,21 @@ def alert(context: CallbackContext):
     courses = job.context.user_data['courses']
     for course in courses:
         activities, msg = get_course_activities(job.context.user_data['session'], course['id'])
-        last_activities_id = job.context.user_data[course['id']]
-        if len(activities) > len(last_activities_id):
-            new_activities_id = []
-            reply_msg = '\n\U0001F514  فعالیت های جدیدی اضافه شد \U0001F514\n\n'
-            for activity in activities:
-                if activity['id'] not in last_activities_id:
-                    reply_msg += f'نام درس:  {course["name"]}\nفعالیت های جدید:   '
-                    status = "مشاهده شده است. \U00002705" if activity[
-                                                                 "status"] == "0" else "مشاهده نشده است. \U0000274C"
-                    reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n\n'
-                    new_activities_id.append(activity['id'])
-            last_activities_id.extend(new_activities_id)
-            job.context.user_data[course['id']] = last_activities_id
-            context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
+        if activities:
+            last_activities_id = job.context.user_data[course['id']]
+            if len(activities) > len(last_activities_id):
+                new_activities_id = []
+                reply_msg = '\n\U0001F514  فعالیت های جدیدی اضافه شد \U0001F514\n\n'
+                for activity in activities:
+                    if activity['id'] not in last_activities_id:
+                        reply_msg += f'نام درس:  {course["name"]}\nفعالیت های جدید:   '
+                        status = "مشاهده شده است. \U00002705" if activity[
+                                                                     "status"] == "0" else "مشاهده نشده است. \U0000274C"
+                        reply_msg += f'\n        عنوان فعالیت:   {activity["name"]}\n        وضعیت:   {status}\n\n'
+                        new_activities_id.append(activity['id'])
+                last_activities_id.extend(new_activities_id)
+                job.context.user_data[course['id']] = last_activities_id
+                context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
 def set_alert(update: Update, context: CallbackContext):
@@ -210,6 +230,9 @@ def set_alert(update: Update, context: CallbackContext):
     if not job_if_exists(str(chat_id), context):
         if not session_is_connected(context.user_data['session']):
             session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+            if not session:
+                update.message.reply_text(msg)
+                return MENU
             context.user_data['session'] = session
         courses = context.user_data['courses']
         done = True
@@ -267,6 +290,9 @@ def show_courses(update: Update, context: CallbackContext):
         return ConversationHandler.END
     if not session_is_connected(context.user_data['session']):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+        if not session:
+            update.message.reply_text(msg)
+            return COURSES
         context.user_data['session'] = session
     reply_keyboard_courses = []
     courses = context.user_data['courses']
@@ -322,6 +348,9 @@ def upload(update: Update, context: CallbackContext):
         return ConversationHandler.END
     if not session_is_connected(context.user_data['session']):
         session, msg = sign_in(context.user_data['username'], context.user_data["password"])
+        if not session:
+            update.message.reply_text(msg)
+            return COURSES
         context.user_data['session'] = session
     session = context.user_data['session']
     threading.Thread(target=generate_download_link, args=(update, context, session)).start()
@@ -444,13 +473,17 @@ def admin(update: Update, _: CallbackContext):
 
 def broadcast(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
-    if chat_id == ADMIN_CHAT_ID and update.message.text != 'cancel':
-        for key in db.keys():
-            try:
-                context.bot.sendMessage(key.decode(), update.message.text)
-            except:
-                pass
-        update.message.reply_text('پیام به کاربران ارسال شد.')
+    if chat_id == ADMIN_CHAT_ID:
+        if update.message.text != 'cancel':
+            for key in db.keys():
+                try:
+                    context.bot.sendMessage(key.decode(), update.message.text)
+                except:
+                    pass
+            reply_msg = 'پیام به کاربران ارسال شد.'
+        else:
+            reply_msg = 'ارسال پیام لغو شد.'
+        update.message.reply_text(reply_msg)
     return ConversationHandler.END
 
 
@@ -491,6 +524,7 @@ def main():
 
     job_queue = dispatcher.job_queue
     job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
+    job_queue.run_repeating(callback=alert_deadline, name='alert_deadline', interval=(24 * 60 * 60))
 
     dispatcher.add_error_handler(error)
 
