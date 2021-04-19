@@ -512,13 +512,17 @@ def main():
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
                    CommandHandler('start', start)],
+        name="main_conversions",
+        persistent=True
     )
     admin_handler = ConversationHandler(
         entry_points=[CommandHandler('admin', admin)],
         states={
             BROADCAST: [MessageHandler(Filters.text, broadcast)]
         },
-        fallbacks=[]
+        fallbacks=[],
+        name="admin_conversion",
+        persistent=True
     )
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(admin_handler)
