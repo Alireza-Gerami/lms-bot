@@ -5,7 +5,8 @@ import threading
 import requests
 import redis
 import traceback
-from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
+from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext,
+                          PicklePersistence)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected, BASE_URL)
@@ -488,7 +489,8 @@ def broadcast(update: Update, context: CallbackContext):
 
 
 def main():
-    updater = Updater(TOKEN, use_context=True)
+    persistence = PicklePersistence(filename='persistence')
+    updater = Updater(TOKEN, use_context=True, persistence=persistence)
 
     dispatcher = updater.dispatcher
 
