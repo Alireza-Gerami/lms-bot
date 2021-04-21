@@ -6,6 +6,8 @@ __pycache__/
 users-redis.db
 # C extensions
 *.so
+client_secrets.json
+credentials.txt
 test.py
 # Distribution / packaging
 .Python
