@@ -5,8 +5,7 @@ import threading
 import requests
 import redis
 import traceback
-from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext,
-                          PicklePersistence)
+from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, CallbackContext)
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove, ChatAction, Update, ForceReply)
 from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected, BASE_URL)
@@ -489,8 +488,7 @@ def broadcast(update: Update, context: CallbackContext):
 
 
 def main():
-    persistence = PicklePersistence(filename='persistence')
-    updater = Updater(TOKEN, use_context=True, persistence=persistence)
+    updater = Updater(TOKEN, use_context=True)
 
     dispatcher = updater.dispatcher
 
@@ -512,8 +510,6 @@ def main():
         },
         fallbacks=[CommandHandler('exit', exit), MessageHandler(Filters.regex('^خروج$'), exit),
                    CommandHandler('start', start)],
-        name="main_conversions",
-        persistent=True
     )
     admin_handler = ConversationHandler(
         entry_points=[CommandHandler('admin', admin)],
@@ -521,8 +517,6 @@ def main():
             BROADCAST: [MessageHandler(Filters.text, broadcast)]
         },
         fallbacks=[],
-        name="admin_conversion",
-        persistent=True
     )
     dispatcher.add_handler(conv_handler)
     dispatcher.add_handler(admin_handler)
