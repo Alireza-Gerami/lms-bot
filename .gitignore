@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 .idea
-users-redis.db
+users-backup.db
 # C extensions
 *.so
 client_secrets.json

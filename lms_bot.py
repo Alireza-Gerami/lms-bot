@@ -15,8 +15,6 @@ from gdrive import GDrive
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.ERROR)
 
 TOKEN = config('TOKEN')
-PORT = int(config('PORT'))
-HEROKU_APP_NAME = config('HEROKU_APP_NAME')
 DB_HOST = config('DB_HOST')
 DB_PORT = int(config('DB_PORT'))
 DB_PASSWORD = config('DB_PASSWORD')
@@ -55,13 +53,13 @@ welcome_msg = '''**سلام من ربات LMS دانشگاه بجنورد هست
 
 **⚠️برای  شروع باید وارد سامانه LMS بشی اما نگران نباش، نام کاربری و رمز عبور رو به هیچ عنوان ذخیره نمی‌کنم⚠️**
 
-اگر انتقاد یا پیشنهادی داری میتونی به خالق من @IchBin\_Alireza پیام بدی\.
+اگر انتقاد یا پیشنهادی داری میتونی به خالق من @gerami\_alirezaa پیام بدی\.
 [Github](https://github.com/Alireza-Gerami/lms-bot)
 [LMS](https://vlms.ub.ac.ir/)'''
-restart_msg = 'لطفا دوباره با ارسال /start شروع کن.'
+restart_msg = 'لطفا دوباره با ارسال /start شروع کنید.'
 goodbye_msg = 'به امید دیدار' \
-              '\nبرای شروع دوباره /start را بفرست.'
-waiting_msg = 'لطفا چند لحظه منتظر بمون...'
+              '\nبرای شروع دوباره /start را بفرستید.'
+waiting_msg = 'لطفا چند لحظه منتظر بمانید...'
 
 
 def start(update: Update, context: CallbackContext):
@@ -75,9 +73,9 @@ def start(update: Update, context: CallbackContext):
     else:
         update.message.reply_text(
             f' سلام {update.message.chat.first_name}'
-            '\nبه ربات LMS دانشگاه خوش آمدی'
-            '\nبرای ادامه کار باید وارد سامانه بشی. (نام کاربری و رمز ورود هرگز ذخیره نمی شود)'
-            '\nاگر منصرف شدی میتونی /exit رو بفرستی.',
+            '\nبه ربات LMS دانشگاه خوش آمدید'
+            '\nبرای ادامه کار باید وارد سامانه شوید. (نام کاربری و رمز ورود هرگز ذخیره نمی شود)'
+            '\nاگر منصرف شدید میتوانید /exit را بفرستید.',
             reply_markup=markup
         )
     context.user_data['started'] = True
@@ -88,7 +86,7 @@ def start(update: Update, context: CallbackContext):
 def username(update: Update, _: CallbackContext):
     """ Getting login information """
     update.message.reply_text(
-        'لطفا نام کاربری رو وارد کن', reply_markup=ForceReply())
+        'لطفا نام کاربری را وارد کنید', reply_markup=ForceReply())
     return PASSWORD
 
 
@@ -96,7 +94,7 @@ def password(update: Update, context: CallbackContext):
     """ Getting login information """
     context.user_data['username'] = update.message.text
     update.message.reply_text(
-        'لطفا رمز ورود رو وارد کن', reply_markup=ForceReply())
+        'لطفا رمز ورود را وارد کنید', reply_markup=ForceReply())
     return LOGIN
 
 
@@ -223,8 +221,8 @@ def set_alert(update: Update, context: CallbackContext):
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     update.message.reply_text(waiting_msg)
     markup = None
+    reply_msg = restart_msg
     if not session_exists(context):
-        reply_msg = restart_msg
         update.message.reply_text(reply_msg, reply_markup=ReplyKeyboardRemove())
         return ConversationHandler.END
     if not job_if_exists(str(chat_id), context):
@@ -238,7 +236,7 @@ def set_alert(update: Update, context: CallbackContext):
         done = True
         for course in courses:
             activities, reply_msg = get_course_activities(context.user_data['session'], course['id'])
-            if activities:
+            if activities is not None:
                 context.user_data[course['id']] = [activity['id'] for activity in activities]
             else:
                 done = False
@@ -250,6 +248,8 @@ def set_alert(update: Update, context: CallbackContext):
             context.user_data['alert'] = True
             context.user_data['chat_id'] = chat_id
             context.job_queue.run_repeating(alert, context=context, name=str(chat_id), interval=1 * 60 * 60)
+        else:
+            reply_msg = 'در حال حاضر این سرویس دچار مشکل شده است. لطفا دوباره تلاش کنید.'
     else:
         reply_msg = 'اطلاع رسانی فعال است.'
     if markup:
@@ -300,7 +300,7 @@ def show_courses(update: Update, context: CallbackContext):
         reply_keyboard_courses.append([f'{course["name"]}'])
     reply_keyboard_courses.append(['برگشت'])
     markup = ReplyKeyboardMarkup(reply_keyboard_courses, resize_keyboard=True)
-    update.message.reply_text('لطفا یک درس رو انتخاب کن', reply_markup=markup)
+    update.message.reply_text('لطفا یک درس را انتخاب کنید', reply_markup=markup)
     return COURSES
 
 
@@ -328,6 +328,8 @@ def show_course_activities(update: Update, context: CallbackContext):
                     reply_msg += f'دانلود:   /download_{activity["id"]}\n'
             else:
                 reply_msg = msg
+            if not reply_msg:
+                reply_msg = f' فعالیتی برای درس {update.message.text} وجود ندارد. '
             update.message.reply_text(reply_msg)
             return COURSES
     update.message.reply_text('این درس وجود ندارد!')
@@ -339,7 +341,7 @@ def upload(update: Update, context: CallbackContext):
     chat_id = update.message.chat_id
     context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
     if 'selected_course' not in context.user_data:
-        update.message.reply_text('لطفا یک درس رو انتخاب کن')
+        update.message.reply_text('لطفا یک درس را انتخاب کنید')
         return COURSES
     update.message.reply_text(waiting_msg)
     if not session_exists(context):
@@ -405,8 +407,8 @@ def generate_download_link(update: Update, context: CallbackContext, session: re
                         update.message.reply_text('این فعالیت فایلی برای دانلود ندارد!')
                     break
                 except Exception as e:
-                    logging.warning(e)
-                    update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کن...')
+                    print(e)
+                    update.message.reply_text('متاسفانه در حال حاظر امکان دانلود وجود ندارد!\n لطفا بعدا تلاش کنید...')
     if not activity_found:
         update.message.reply_text(f'این فعالیت در درس {selected_course["name"]} وجود ندارد!')
 
@@ -435,7 +437,7 @@ def exit(update: Update, context: CallbackContext):
     if 'alert' in context.user_data and context.user_data['alert']:
         reply_keyboard = [['آره'], ['نه']]
         markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
-        reply_msg = 'اطلاع رسانی فعال است که با خارج شدن شما غیر فعال می شود. آیا می خواهید خارج بشی؟'
+        reply_msg = 'اطلاع رسانی فعال است که با خارج شدن شما غیر فعال می شود. آیا می خواهید خارج شوید؟'
         update.message.reply_text(reply_msg, reply_markup=markup)
         return CONFIRM_EXIT
     context.user_data.clear()
@@ -457,16 +459,10 @@ def unknown_handler(update: Update, context: CallbackContext):
     update.message.reply_text(reply_msg)
 
 
-def keep_awake_heroku(_: CallbackContext):
-    """ Keep awake heroku app """
-    requests.get(f'https://{HEROKU_APP_NAME}.herokuapp.com/')
-    logger.info('Send request to keep awake.')
-
-
 def admin(update: Update, _: CallbackContext):
     chat_id = update.message.chat_id
     if chat_id == ADMIN_CHAT_ID:
-        update.message.reply_text('حالت ادمین فعال شد.\n لطفا پیام خود را برای ارسال به کاربران بفرستید')
+        update.message.reply_text('حالت ادمین فعال شد.\n لطفا پیام خود را برای ارسال به کاربران بنویسید')
         return BROADCAST
     return ConversationHandler.END
 
@@ -523,15 +519,14 @@ def main():
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
 
     job_queue = dispatcher.job_queue
-    job_queue.run_repeating(callback=keep_awake_heroku, name='keep_awake', interval=(20 * 60))
-    job_queue.run_repeating(callback=alert_deadline, name='alert_deadline', interval=(24 * 60 * 60))
+    job_queue.run_repeating(callback=alert_deadline, name='alert_deadline', interval=(8 * 60 * 60))
 
     dispatcher.add_error_handler(error)
-
-    updater.start_webhook(listen='0.0.0.0',
-                          port=PORT,
-                          url_path=TOKEN,
-                          webhook_url=f'https://{HEROKU_APP_NAME}.herokuapp.com/' + TOKEN)
+    updater.start_polling()
+    # updater.start_webhook(listen='0.0.0.0',
+    #                       port=PORT,
+    #                       url_path=TOKEN,
+    #                       webhook_url=f'https://{HEROKU_APP_NAME}.herokuapp.com/' + TOKEN)
 
     updater.idle()
 

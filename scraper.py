@@ -95,8 +95,11 @@ def get_events(session: requests.Session):
                 if 'closes' in event_name or 'opens' in event_name:
                     event_status = 'انجام نشده است. \U0000274C'
                 else:
-                    event_status = 'تحویل داده شده است. \U00002705' if 'رفتن به فعالیت' in event.find('a', {
-                        'class': 'card-link'}).text else 'تحویل داده نشده است. \U0000274C'
+                    event_status_tag = event.find('a', {'class': 'card-link'})
+                    if event_status_tag:
+                        event_status = 'تحویل داده شده است. \U00002705' if 'رفتن به فعالیت' in event_status_tag.text else 'تحویل داده نشده است. \U0000274C'
+                    else:
+                        event_status = 'مشخص نیست'
                 events_list.append({
                     'name': event_name,
                     'lesson': event_lesson_name,
