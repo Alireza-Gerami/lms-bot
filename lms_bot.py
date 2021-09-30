@@ -116,6 +116,9 @@ def login(update: Update, context: CallbackContext):
                 reply_keyboard = reply_keyboard_menu_first
             context.user_data['session'] = session
             context.user_data['courses'] = courses
+            context.user_data['chat_id'] = chat_id
+            context.job_queue.run_repeating(callback=alert_deadline, name='alert_deadline' + str(chat_id),
+                                            context=context, interval=(8 * 60 * 60))
         else:
             reply_msg = msg
             reply_keyboard = reply_keyboard_login
@@ -182,11 +185,12 @@ def alert_deadline(context: CallbackContext):
     events_list, msg = get_events(job.context.user_data['session'])
     if events_list:
         reply_msg = '\n\U0001F514  پایان مهلت فعالیت های زیر نزدیک است \U0001F514\n\n'
+        len_0 = len(reply_msg)
         for event in events_list:
             if 'نشده' in event['status'] and ('فردا' in event['deadline'] or 'امروز' in event['deadline']):
                 reply_msg += f'نام درس:   {event["lesson"]}\nعنوان فعالیت:   {event["name"]}\nمهلت تا:   {event["deadline"]}\nوضعیت:   {event["status"]}\n\n'
-
-        context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
+        if len(reply_msg) != len_0:
+            context.bot.send_message(job.context.user_data['chat_id'], reply_msg)
 
 
 def alert(context: CallbackContext):
@@ -400,7 +404,6 @@ def generate_download_link(update: Update, context: CallbackContext, session: re
                         reply_msg = f'\n<b>نام درس:   {selected_course["name"]}</b>\n\nعنوان فعالیت:   {activity["name"]}\n\n'
                         reply_msg += f'<b><a href="{file["webContentLink"]}">📥  دانلود</a></b>\n'
                         reply_msg += f'\n\n@ub_lms_bot\n'
-                        os.remove(filename)
                         db_upload.set(activity['id'], file["webContentLink"], ex=7 * 24 * 60 * 60)
                         update.message.reply_text(reply_msg, parse_mode='HTML')
                     else:
@@ -415,7 +418,7 @@ def generate_download_link(update: Update, context: CallbackContext, session: re
 
 def get_filename(activity_name: str, content_description: str):
     extension = content_description.split('.')[-1][:-1]
-    return f'{activity_name}.{extension}'
+    return f'./files/{activity_name}.{extension}'
 
 
 def confirm_exit(update: Update, context: CallbackContext):
@@ -460,6 +463,7 @@ def unknown_handler(update: Update, context: CallbackContext):
 
 
 def admin(update: Update, _: CallbackContext):
+    """ Handel admin command """
     chat_id = update.message.chat_id
     if chat_id == ADMIN_CHAT_ID:
         update.message.reply_text('حالت ادمین فعال شد.\n لطفا پیام خود را برای ارسال به کاربران بنویسید')
@@ -468,6 +472,7 @@ def admin(update: Update, _: CallbackContext):
 
 
 def broadcast(update: Update, context: CallbackContext):
+    """ Broadcast admin message to users """
     chat_id = update.message.chat_id
     if chat_id == ADMIN_CHAT_ID:
         if update.message.text != 'cancel':
@@ -481,6 +486,15 @@ def broadcast(update: Update, context: CallbackContext):
             reply_msg = 'ارسال پیام لغو شد.'
         update.message.reply_text(reply_msg)
     return ConversationHandler.END
+
+
+def remove_files(context: CallbackContext):
+    """ Remove downloaded files """
+    for file in os.listdir('./files'):
+        try:
+            os.remove(f'./files/{file}')
+        except:
+            continue
 
 
 def main():
@@ -519,14 +533,10 @@ def main():
     dispatcher.add_handler(MessageHandler(Filters.command | Filters.text, unknown_handler))
 
     job_queue = dispatcher.job_queue
-    job_queue.run_repeating(callback=alert_deadline, name='alert_deadline', interval=(8 * 60 * 60))
+    job_queue.run_repeating(callback=remove_files, name='remove_files', interval=(24 * 60 * 60))
 
     dispatcher.add_error_handler(error)
     updater.start_polling()
-    # updater.start_webhook(listen='0.0.0.0',
-    #                       port=PORT,
-    #                       url_path=TOKEN,
-    #                       webhook_url=f'https://{HEROKU_APP_NAME}.herokuapp.com/' + TOKEN)
 
     updater.idle()
 
