@@ -2,6 +2,8 @@
 import logging
 import os
 import threading
+
+import num2fawords
 import requests
 import redis
 import traceback
@@ -11,6 +13,9 @@ from decouple import config
 from scraper import (get_events, sign_in, get_student_courses, get_course_activities, session_is_connected, BASE_URL)
 from bs4 import BeautifulSoup
 from gdrive import GDrive
+import jdatetime
+import json
+from persiantools import digits
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.ERROR)
 
@@ -34,13 +39,14 @@ db_upload = redis.Redis(host=DB_UPLOAD_HOST, port=DB_UPLOAD_PORT, password=DB_UP
 logger = logging.getLogger(__name__)
 
 # Conversation handler states
-LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT, BROADCAST, COURSES = range(7)
+LOGIN, USERNAME, PASSWORD, MENU, CONFIRM_EXIT, BROADCAST, COURSES, START_MENU, WEEK_NUMBER, CALENDER = range(10)
 
 # Reply keyboards
-reply_keyboard_login = [['ورود به سامانه']]
-reply_keyboard_menu_first = [['نمایش رویدادهای نزدیک'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['درس ها'], ['خروج']]
+reply_keyboard_menu_login = [['ورود به سامانه'], ['هفته زوج یا فرد؟'], ['تقویم آموزشی']]
+reply_keyboard_menu_first = [['نمایش رویدادهای نزدیک'], ['فعال کردن اطلاع رسانی فعالیت جدید'], ['درس ها'],
+                             ['هفته زوج یا فرد؟'], ['تقویم آموزشی'], ['خروج']]
 reply_keyboard_menu_second = [['نمایش رویدادهای نزدیک'], ['غیر فعال کردن اطلاع رسانی فعالیت جدید'], ['درس ها'],
-                              ['خروج']]
+                              ['هفته زوج یا فرد؟'], ['تقویم آموزشی'], ['خروج']]
 
 # General messages
 welcome_msg = '''**سلام من ربات LMS دانشگاه بجنورد هستم**
@@ -66,7 +72,7 @@ def start(update: Update, context: CallbackContext):
     """ Start bot with /start command """
     chat_id = update.message.chat_id
     name = update.message.from_user.username if update.message.from_user.username else update.message.from_user.full_name
-    markup = ReplyKeyboardMarkup(reply_keyboard_login, one_time_keyboard=True, resize_keyboard=True)
+    markup = ReplyKeyboardMarkup(reply_keyboard_menu_login, resize_keyboard=True)
     if not db.exists(chat_id):
         update.message.reply_text(welcome_msg, reply_markup=markup, parse_mode='MarkdownV2')
         db.set(chat_id, name)
@@ -79,8 +85,37 @@ def start(update: Update, context: CallbackContext):
             reply_markup=markup
         )
     context.user_data['started'] = True
+    context.user_data['is_login'] = False
+    return START_MENU
 
-    return USERNAME
+
+def week_number(update: Update, context: CallbackContext):
+    """ Show the week is odd or even """
+    chat_id = update.message.chat_id
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    with open('./resource/config.json', 'r') as f:
+        config_file = json.load(f)
+        start_date_edu_calender = jdatetime.datetime.strptime(config_file['start_date_edu_calender'], '%Y-%m-%d').date()
+        end_date_edu_calender = jdatetime.datetime.strptime(config_file['end_date_edu_calender'], '%Y-%m-%d').date()
+    today = jdatetime.date.today()
+    if start_date_edu_calender <= today <= end_date_edu_calender:
+        diff = today - start_date_edu_calender
+        week_num = diff.days // 7 + 1
+        week_odd_even = 'فرد' if week_num % 2 else 'زوج'
+        reply_msg = f'امروز {jdatetime.date.j_weekdays_fa[today.weekday()]} {num2fawords.ordinal_words(today.day)} {jdatetime.date.j_months_fa[today.month]} {digits.en_to_fa(str(today.year))}' \
+                    f' هفته {num2fawords.ordinal_words((diff.days // 7 + 1))} آموزشی و {week_odd_even} است.'
+    else:
+        reply_msg = 'ترم تمام شده است.'
+    update.message.reply_text(reply_msg)
+    return MENU if context.user_data['is_login'] else START_MENU
+
+
+def calender(update: Update, context: CallbackContext):
+    """ Show educational calender """
+    chat_id = update.message.chat_id
+    context.bot.sendChatAction(chat_id=chat_id, action=ChatAction.TYPING)
+    update.message.reply_photo(photo=open('resource/1400-1401-calender.jpg', 'rb'))
+    return MENU if context.user_data['is_login'] else START_MENU
 
 
 def username(update: Update, _: CallbackContext):
@@ -114,22 +149,24 @@ def login(update: Update, context: CallbackContext):
                 reply_keyboard = reply_keyboard_menu_second
             else:
                 reply_keyboard = reply_keyboard_menu_first
+            context.user_data['is_login'] = True
             context.user_data['session'] = session
             context.user_data['courses'] = courses
             context.user_data['chat_id'] = chat_id
-            context.job_queue.run_repeating(callback=alert_deadline, name='alert_deadline' + str(chat_id),
-                                            context=context, interval=(8 * 60 * 60))
+            if not job_if_exists('alert_deadline' + str(chat_id), context):
+                context.job_queue.run_repeating(callback=alert_deadline, name='alert_deadline' + str(chat_id),
+                                                context=context, interval=(8 * 60 * 60))
         else:
             reply_msg = msg
-            reply_keyboard = reply_keyboard_login
+            reply_keyboard = reply_keyboard_menu_login
     else:
-        reply_keyboard = reply_keyboard_login
+        reply_keyboard = reply_keyboard_menu_login
     markup = ReplyKeyboardMarkup(reply_keyboard, resize_keyboard=True)
     update.message.reply_text(
         reply_msg,
         reply_markup=markup,
     )
-    return MENU if session and courses else USERNAME
+    return MENU if session and courses else START_MENU
 
 
 def events(update: Update, context: CallbackContext):
@@ -505,7 +542,11 @@ def main():
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler('start', start)],
         states={
-            USERNAME: [MessageHandler(Filters.regex('^ورود به سامانه$'), username)],
+            START_MENU: [
+                MessageHandler(Filters.regex('^ورود به سامانه$'), username),
+                MessageHandler(Filters.regex('^هفته زوج یا فرد؟$'), week_number),
+                MessageHandler(Filters.regex('^تقویم آموزشی$'), calender)
+            ],
             PASSWORD: [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^خروج$')), password)],
             LOGIN: [MessageHandler(Filters.text & ~(Filters.command | Filters.regex('^خروج$')), login)],
             MENU: [
@@ -513,6 +554,8 @@ def main():
                 MessageHandler(Filters.regex('^فعال کردن اطلاع رسانی فعالیت جدید$'), set_alert),
                 MessageHandler(Filters.regex('^غیر فعال کردن اطلاع رسانی فعالیت جدید$'), unset_alert),
                 MessageHandler(Filters.regex('^درس ها$'), show_courses),
+                MessageHandler(Filters.regex('^هفته زوج یا فرد؟$'), week_number),
+                MessageHandler(Filters.regex('^تقویم آموزشی$'), calender)
             ],
             COURSES: [MessageHandler(Filters.text & ~Filters.command, show_course_activities),
                       MessageHandler(Filters.command & Filters.regex('^/download_'), upload)],
